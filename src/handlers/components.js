@@ -2,7 +2,6 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  MessageFlags,
   StringSelectMenuBuilder,
 } = require("discord.js");
 const { allocateStat, getHunter, ensureHunter, xpRequired } = require("../services/hunterService");
@@ -51,7 +50,6 @@ async function safeInteractionCall(fn) {
 function buildShopUpdatePayload(params) {
   const payload = buildShopPayload(params);
   payload.content = null;
-  delete payload.flags;
   return payload;
 }
 
@@ -65,7 +63,6 @@ function buildClassicShopPayload({ userId, hunter, page = 0, selectedKey = null,
 function buildRaidUpdatePayload(params) {
   const payload = { ...params };
   payload.content = null;
-  delete payload.flags;
   return payload;
 }
 
@@ -285,7 +282,7 @@ async function handleComponent(interaction) {
       return;
     }
 
-    await safeInteractionCall(() => interaction.deferReply({ flags: MessageFlags.Ephemeral }));
+    await safeInteractionCall(() => interaction.deferReply({ ephemeral: true }));
     try {
       const hunter = await ensureHunter({ userId: interaction.user.id, guildId: interaction.guildId });
       const result = await runDungeon(hunter, difficulty);
@@ -406,7 +403,7 @@ async function handleComponent(interaction) {
       content: "Shadow Army",
       files: [{ attachment: card, name: "shadows.png" }],
       components: shadowsRow(interaction.user.id, shadows),
-      flags: MessageFlags.Ephemeral,
+      ephemeral: true,
     }));
     return;
   }
