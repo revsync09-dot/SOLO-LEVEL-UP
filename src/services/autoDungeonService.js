@@ -5,25 +5,19 @@ const {
   ContainerBuilder,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
-  MessageFlags,
   TextDisplayBuilder,
 } = require("discord.js");
 const { supabase } = require("../lib/supabase");
-const { getConfig } = require("../config/config");
 const { DUNGEON_DIFFICULTIES } = require("../utils/constants");
 const { createLobby, summary } = require("./raidDungeonService");
 
 const memoryConfig = new Map();
 const spawnJoinState = new Map();
-const manualSpawnState = new Map();
 let dbUnavailable = false;
 let loopHandle = null;
 let inTick = false;
 const SPAWN_JOIN_COOLDOWN_MS = 20_000;
 const SPAWN_JOIN_TTL_MS = 3 * 60 * 60 * 1000;
-const MANUAL_SPAWN_LOCK_MS = 15_000;
-const LOCKED_GUILD_ID = getConfig().discordGuildId;
-const DUNGEON_PING_ROLE_ID = "1477381208773230604";
 const AUTO_DUNGEON_BANNER_URL =
   "https://media.discordapp.net/attachments/1477018034169188362/1477023604771127327/a12065b307fca0a2b2018efc702d7a3b.gif?ex=69a340ed&is=69a1ef6d&hm=40e559eeef308b2082adcb3152e8bde539bbd56d79637b67416a70c730f547c5&=";
 
@@ -62,7 +56,7 @@ function isMissingSettingsTable(error) {
 
 function normalizeConfig(row) {
   return {
-    guild_id: LOCKED_GUILD_ID,
+    guild_id: row.guild_id,
     dungeon_channel_id: row.dungeon_channel_id || null,
     dungeon_interval_minutes: Number(row.dungeon_interval_minutes || 15),
     dungeon_enabled: row.dungeon_enabled !== false,
@@ -72,12 +66,8 @@ function normalizeConfig(row) {
 }
 
 async function upsertDungeonConfig({ guildId, channelId, intervalMinutes = 15, enabled = true }) {
-  if (guildId !== LOCKED_GUILD_ID) {
-    throw new Error(`Auto dungeon can only be configured for guild ${LOCKED_GUILD_ID}.`);
-  }
-
   const payload = normalizeConfig({
-    guild_id: LOCKED_GUILD_ID,
+    guild_id: guildId,
     dungeon_channel_id: channelId,
     dungeon_interval_minutes: Math.max(1, Number(intervalMinutes || 15)),
     dungeon_enabled: !!enabled,
@@ -85,9 +75,9 @@ async function upsertDungeonConfig({ guildId, channelId, intervalMinutes = 15, e
   });
 
   if (dbUnavailable) {
-    const old = memoryConfig.get(LOCKED_GUILD_ID) || {};
+    const old = memoryConfig.get(guildId) || {};
     const merged = { ...old, ...payload };
-    memoryConfig.set(LOCKED_GUILD_ID, merged);
+    memoryConfig.set(guildId, merged);
     return merged;
   }
 
@@ -101,15 +91,15 @@ async function upsertDungeonConfig({ guildId, channelId, intervalMinutes = 15, e
 
     if (!error) {
       const normalized = normalizeConfig(data);
-      memoryConfig.set(LOCKED_GUILD_ID, normalized);
+      memoryConfig.set(guildId, normalized);
       return normalized;
     }
 
     if (isMissingSettingsTable(error)) {
       dbUnavailable = true;
-      const old = memoryConfig.get(LOCKED_GUILD_ID) || {};
+      const old = memoryConfig.get(guildId) || {};
       const merged = { ...old, ...payload };
-      memoryConfig.set(LOCKED_GUILD_ID, merged);
+      memoryConfig.set(guildId, merged);
       return merged;
     }
 
@@ -121,9 +111,9 @@ async function upsertDungeonConfig({ guildId, channelId, intervalMinutes = 15, e
     delete attempt[missing];
   }
 
-  const old = memoryConfig.get(LOCKED_GUILD_ID) || {};
+  const old = memoryConfig.get(guildId) || {};
   const merged = { ...old, ...payload };
-  memoryConfig.set(LOCKED_GUILD_ID, merged);
+  memoryConfig.set(guildId, merged);
   return merged;
 }
 
@@ -132,11 +122,7 @@ async function listDungeonConfigs() {
     return Array.from(memoryConfig.values());
   }
 
-  const { data, error } = await supabase
-    .from("guild_settings")
-    .select("*")
-    .eq("dungeon_enabled", true)
-    .eq("guild_id", LOCKED_GUILD_ID);
+  const { data, error } = await supabase.from("guild_settings").select("*").eq("dungeon_enabled", true);
   if (!error) {
     const normalized = (data || []).map(normalizeConfig);
     for (const cfg of normalized) memoryConfig.set(cfg.guild_id, cfg);
@@ -145,42 +131,35 @@ async function listDungeonConfigs() {
 
   if (isMissingSettingsTable(error)) {
     dbUnavailable = true;
-    return Array.from(memoryConfig.values()).filter((x) => x.dungeon_enabled && x.guild_id === LOCKED_GUILD_ID);
+    return Array.from(memoryConfig.values()).filter((x) => x.dungeon_enabled);
   }
 
   throw error;
 }
 
-async function getDungeonConfig(guildId = LOCKED_GUILD_ID) {
-  if (guildId !== LOCKED_GUILD_ID) return null;
-
+async function getDungeonConfig(guildId) {
+  if (!guildId) return null;
   if (dbUnavailable) {
-    return memoryConfig.get(LOCKED_GUILD_ID) || null;
+    return memoryConfig.get(guildId) || null;
   }
 
-  const { data, error } = await supabase
-    .from("guild_settings")
-    .select("*")
-    .eq("guild_id", LOCKED_GUILD_ID)
-    .maybeSingle();
-
+  const { data, error } = await supabase.from("guild_settings").select("*").eq("guild_id", guildId).maybeSingle();
   if (!error) {
-    if (!data) return memoryConfig.get(LOCKED_GUILD_ID) || null;
+    if (!data) return memoryConfig.get(guildId) || null;
     const normalized = normalizeConfig(data);
-    memoryConfig.set(LOCKED_GUILD_ID, normalized);
+    memoryConfig.set(guildId, normalized);
     return normalized;
   }
 
   if (isMissingSettingsTable(error)) {
     dbUnavailable = true;
-    return memoryConfig.get(LOCKED_GUILD_ID) || null;
+    return memoryConfig.get(guildId) || null;
   }
 
   throw error;
 }
 
 async function markDungeonPosted(guildId, atIso) {
-  if (guildId !== LOCKED_GUILD_ID) return;
   const old = memoryConfig.get(guildId) || { guild_id: guildId };
   const next = { ...old, last_dungeon_at: atIso, updated_at: nowIso() };
   memoryConfig.set(guildId, next);
@@ -192,73 +171,6 @@ async function markDungeonPosted(guildId, atIso) {
     .update({ last_dungeon_at: atIso, updated_at: nowIso() })
     .eq("guild_id", guildId);
   if (error && isMissingSettingsTable(error)) dbUnavailable = true;
-}
-
-function pruneManualSpawnState() {
-  const now = Date.now();
-  for (const [key, ts] of manualSpawnState.entries()) {
-    if (now - Number(ts || 0) > MANUAL_SPAWN_LOCK_MS * 2) {
-      manualSpawnState.delete(key);
-    }
-  }
-}
-
-async function tryClaimDungeonSpawn(config) {
-  const intervalMs = Math.max(1, Number(config?.dungeon_interval_minutes || 15)) * 60 * 1000;
-  const now = Date.now();
-  const claimedAtIso = new Date(now).toISOString();
-  const thresholdIso = new Date(now - intervalMs).toISOString();
-
-  if (dbUnavailable) {
-    const lastMs = config.last_dungeon_at ? new Date(config.last_dungeon_at).getTime() : 0;
-    if (lastMs && now - lastMs < intervalMs) return null;
-    await markDungeonPosted(config.guild_id, claimedAtIso);
-    return claimedAtIso;
-  }
-
-  const { data, error } = await supabase
-    .from("guild_settings")
-    .update({ last_dungeon_at: claimedAtIso, updated_at: nowIso() })
-    .eq("guild_id", config.guild_id)
-    .eq("dungeon_enabled", true)
-    .or(`last_dungeon_at.is.null,last_dungeon_at.lte.${thresholdIso}`)
-    .select("guild_id,last_dungeon_at")
-    .maybeSingle();
-
-  if (error) {
-    if (isMissingSettingsTable(error)) {
-      dbUnavailable = true;
-      const lastMs = config.last_dungeon_at ? new Date(config.last_dungeon_at).getTime() : 0;
-      if (lastMs && now - lastMs < intervalMs) return null;
-      await markDungeonPosted(config.guild_id, claimedAtIso);
-      return claimedAtIso;
-    }
-    throw error;
-  }
-
-  if (!data) return null;
-  const old = memoryConfig.get(config.guild_id) || { guild_id: config.guild_id };
-  memoryConfig.set(config.guild_id, { ...old, last_dungeon_at: claimedAtIso, updated_at: nowIso() });
-  return claimedAtIso;
-}
-
-function tryClaimManualSpawn(guildId, channelId) {
-  if (guildId !== LOCKED_GUILD_ID) {
-    return { ok: false, reason: "wrong_guild", retryAfterMs: 0 };
-  }
-  pruneManualSpawnState();
-  const key = `${guildId}:${channelId}`;
-  const now = Date.now();
-  const last = Number(manualSpawnState.get(key) || 0);
-  if (last && now - last < MANUAL_SPAWN_LOCK_MS) {
-    return {
-      ok: false,
-      reason: "cooldown",
-      retryAfterMs: MANUAL_SPAWN_LOCK_MS - (now - last),
-    };
-  }
-  manualSpawnState.set(key, now);
-  return { ok: true, reason: "ok", retryAfterMs: 0 };
 }
 
 function randomChoice(arr) {
@@ -280,26 +192,7 @@ function dueForSpawn(config, nowMs) {
   return nowMs - lastMs >= intervalMs;
 }
 
-async function hasRecentSpawnMessage(channel, botUserId) {
-  try {
-    const recent = await channel.messages.fetch({ limit: 6 });
-    const now = Date.now();
-    for (const msg of recent.values()) {
-      if (msg.author?.id !== botUserId) continue;
-      if (now - Number(msg.createdTimestamp || 0) > MANUAL_SPAWN_LOCK_MS) continue;
-      const hasRaidJoin = (msg.components || []).some((row) =>
-        (row.components || []).some((comp) => String(comp.customId || "").startsWith("raid_join:"))
-      );
-      if (hasRaidJoin) return true;
-    }
-  } catch {
-    return false;
-  }
-  return false;
-}
-
 async function postDungeonSpawn(client, config) {
-  if (config.guild_id !== LOCKED_GUILD_ID) return;
   const guild = client.guilds.cache.get(config.guild_id) || (await client.guilds.fetch(config.guild_id).catch(() => null));
   if (!guild) return;
   const channel = guild.channels.cache.get(config.dungeon_channel_id) || (await guild.channels.fetch(config.dungeon_channel_id).catch(() => null));
@@ -322,8 +215,6 @@ async function postDungeonSpawn(client, config) {
   };
   const threat = dangerMap[spawn.difficultyKey] || "Moderate";
   const detailText = [
-    `<@&${DUNGEON_PING_ROLE_ID}>`,
-    "",
     "**Auto Dungeon Spawn**",
     `Gate: **${spawn.name}**`,
     `Difficulty: **${view.difficultyLabel}**`,
@@ -331,9 +222,9 @@ async function postDungeonSpawn(client, config) {
     `Rounds: **${view.maxRounds}**`,
     "",
     "Press **Join** to enter this raid.",
-    "The owner or staff can start with **Start Raid**.",
-    "Fight together, survive all rounds, and claim rewards.",
-    
+    "Then press **Start Raid** to begin the round fight.",
+    "Boss HP, defeated list, and rewards are live updated in the lobby view.",
+    "Rounds progress automatically during battle.",
   ].join("\n");
 
   const container = new ContainerBuilder()
@@ -350,25 +241,17 @@ async function postDungeonSpawn(client, config) {
 
   await channel.send({
     components: [container, row],
-    flags: MessageFlags.IsComponentsV2,
-    allowedMentions: { roles: [DUNGEON_PING_ROLE_ID] },
+    flags: 0x80, // Hardcoded IsComponentsV2 bit
   });
 
   await markDungeonPosted(config.guild_id, nowIso());
 }
 
 async function postManualDungeonSpawn(client, { guildId, channelId }) {
-  if (guildId !== LOCKED_GUILD_ID) return { ok: false, reason: "wrong_guild" };
-
   const guild = client.guilds.cache.get(guildId) || (await client.guilds.fetch(guildId).catch(() => null));
   if (!guild) return { ok: false, reason: "guild_missing" };
-
   const channel = guild.channels.cache.get(channelId) || (await guild.channels.fetch(channelId).catch(() => null));
   if (!channel || !channel.isTextBased()) return { ok: false, reason: "channel_missing" };
-  const alreadyPosted = await hasRecentSpawnMessage(channel, client.user.id);
-  if (alreadyPosted) return { ok: false, reason: "duplicate_message" };
-  const claim = tryClaimManualSpawn(guildId, channel.id);
-  if (!claim.ok) return { ok: false, reason: "cooldown", retryAfterMs: claim.retryAfterMs };
 
   const spawn = pickRandomDungeon();
   const lobby = createLobby({
@@ -387,8 +270,6 @@ async function postManualDungeonSpawn(client, { guildId, channelId }) {
   };
   const threat = dangerMap[spawn.difficultyKey] || "Moderate";
   const detailText = [
-    `<@&${DUNGEON_PING_ROLE_ID}>`,
-    "",
     "**Auto Dungeon Spawn**",
     `Gate: **${spawn.name}**`,
     `Difficulty: **${view.difficultyLabel}**`,
@@ -396,9 +277,7 @@ async function postManualDungeonSpawn(client, { guildId, channelId }) {
     `Rounds: **${view.maxRounds}**`,
     "",
     "Press **Join** to enter this raid.",
-    "The owner or staff can start with **Start Raid**.",
-    "Fight together, survive all rounds, and claim rewards.",
-    
+    "Then press **Start Raid** to begin the round fight.",
   ].join("\n");
 
   const container = new ContainerBuilder()
@@ -415,8 +294,7 @@ async function postManualDungeonSpawn(client, { guildId, channelId }) {
 
   await channel.send({
     components: [container, row],
-    flags: MessageFlags.IsComponentsV2,
-    allowedMentions: { roles: [DUNGEON_PING_ROLE_ID] },
+    flags: 0x80,
   });
 
   return { ok: true };
@@ -431,8 +309,6 @@ async function autoDungeonTick(client) {
     for (const config of configs) {
       if (!dueForSpawn(config, nowMs)) continue;
       try {
-        const claimedAt = await tryClaimDungeonSpawn(config);
-        if (!claimedAt) continue;
         await postDungeonSpawn(client, config);
       } catch (error) {
         console.error("[auto-dungeon:post]", config.guild_id, error);
@@ -495,8 +371,8 @@ function finishSpawnJoin(spawnId, userId, success) {
 module.exports = {
   upsertDungeonConfig,
   getDungeonConfig,
-  startAutoDungeonLoop,
   postManualDungeonSpawn,
+  startAutoDungeonLoop,
   reserveSpawnJoin,
   finishSpawnJoin,
 };

@@ -1,4 +1,4 @@
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const { ensureHunter, addXpAndGold } = require("../services/hunterService");
 const { getCooldown, setCooldown } = require("../services/cooldownService");
 const { runHunt } = require("../services/combatService");
@@ -39,7 +39,7 @@ module.exports = {
     await interaction.reply({
       content: cardDrop.granted ? `You unlocked **${cardDrop.card.name}** (drop chance: 0.0025%).` : undefined,
       files,
-      flags: MessageFlags.Ephemeral,
+      ephemeral: true,
     });
   },
 };

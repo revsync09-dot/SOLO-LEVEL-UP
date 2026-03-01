@@ -15,8 +15,13 @@ async function deploy() {
     .filter((file) => file.endsWith(".js") && !disabledCommandFiles.has(file));
 
   for (const file of commandFiles) {
-    const command = require(path.join(commandsPath, file));
-    if (command.data) commands.push(command.data.toJSON());
+    try {
+      const command = require(path.join(commandsPath, file));
+      if (command.data) commands.push(command.data.toJSON());
+    } catch (e) {
+      console.error(`Error loading command from ${file}:`, e);
+      throw e;
+    }
   }
 
   const rest = new REST({ version: "10" }).setToken(config.discordToken);

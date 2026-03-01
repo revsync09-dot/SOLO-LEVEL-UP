@@ -1,4 +1,4 @@
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const { ensureHunter } = require("../services/hunterService");
 const { sendStatus } = require("../utils/statusMessage");
 const { RANKS, RANK_THRESHOLDS } = require("../utils/constants");
@@ -8,7 +8,7 @@ const { generateRankupCard } = require("../services/cardGenerator");
 module.exports = {
   data: new SlashCommandBuilder().setName("rankup").setDescription("Take rank exam when level requirement is met."),
   async execute(interaction) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await interaction.deferReply({ ephemeral: true });
     const hunter = await ensureHunter({ userId: interaction.user.id, guildId: interaction.guildId });
     const currentIndex = RANKS.indexOf(hunter.rank);
     if (currentIndex < 0 || currentIndex >= RANKS.length - 1) {

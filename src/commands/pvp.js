@@ -1,4 +1,4 @@
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const { ensureHunter } = require("../services/hunterService");
 const { runPvp } = require("../services/pvpService");
 const { sendProgressionBanner } = require("../utils/progressionBanner");
@@ -12,7 +12,7 @@ module.exports = {
     .setDescription("Challenge another Hunter.")
     .addUserOption((option) => option.setName("opponent").setDescription("Hunter to challenge").setRequired(true)),
   async execute(interaction) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await interaction.deferReply({ ephemeral: true });
     const cd = await getCooldown(interaction.user.id, interaction.guildId, "battle");
     if (cd && new Date(cd.available_at).getTime() > Date.now()) {
       await interaction.editReply({ content: `Battle cooldown active: ${cooldownRemaining(cd.available_at)}s` });
