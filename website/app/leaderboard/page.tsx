@@ -4,25 +4,54 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 
-// Mock data for initial fill
-const mockPlayers = [
-  { user_id: '1', username: 'SungJinWoo', level: 120, rank: 'Shadow Monarch', xp: 9500000, guild: 'Solo' },
-  { user_id: '2', username: 'ChaHaeIn', level: 95, rank: 'S-Rank', xp: 450000, guild: 'Hunters' },
-  { user_id: '3', username: 'BaekYoonho', level: 88, rank: 'S-Rank', xp: 320000, guild: 'White Tiger' },
-  { user_id: '4', username: 'ThomasAndre', level: 105, rank: 'National Level', xp: 750000, guild: 'Scavenger' },
-  { user_id: '5', username: 'GoGunHee', level: 100, rank: 'Chairman', xp: 600000, guild: 'Association' },
-];
-
 const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState('Global');
-  const [loading, setLoading] = useState(false);
-  const [players, setPlayers] = useState(mockPlayers);
+  const [loading, setLoading] = useState(true);
+  const [players, setPlayers] = useState<any[]>([]);
 
   const tabs = ['Global', 'Monthly', 'Weekly', 'Guild'];
 
-  // In a real scenario, this would trigger a query
   useEffect(() => {
-    // fetchData();
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        let query = supabase
+          .from('hunters')
+          .select('*')
+          .order('xp', { ascending: false })
+          .limit(50);
+        
+        // Tab-specific logic could be added here
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        if (data) setPlayers(data);
+      } catch (err) {
+        console.error('Error fetching leaderboard:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    // LIVE REALTIME UPDATES
+    const channel = supabase
+      .channel('hunter-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hunters' },
+        (payload) => {
+          console.log('Live update received:', payload);
+          // Refresh list when data changes
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [activeTab]);
 
   return (
@@ -33,8 +62,7 @@ const Leaderboard = () => {
             Hunter <span className="text-primary">Ranking</span>
           </h1>
           <p className="text-muted text-lg max-w-2xl">
-            See who stands at the top of the world. Only the strongest 
-            survive in the path of the monarchs.
+            See who stands at the top of the world. Data is updated <span className="text-accent underline decoration-accent/30 decoration-2 underline-offset-4">live</span> as hunters complete dungeons.
           </p>
         </header>
 
@@ -70,53 +98,57 @@ const Leaderboard = () => {
               </thead>
               <tbody>
                 <AnimatePresence mode="popLayout">
-                  {players.map((player, index) => (
-                    <motion.tr
-                      key={player.user_id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 10 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b border-white/5 hover:bg-white/5 transition-colors group cursor-pointer"
-                    >
-                      <td className="px-8 py-6">
-                        <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-black text-sm ${
-                          index === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' :
-                          index === 1 ? 'bg-gray-400 text-black' :
-                          index === 2 ? 'bg-amber-700 text-white' : 'bg-white/10 text-muted'
-                        }`}>
-                          {index + 1}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent opacity-80" />
-                          <div>
-                            <div className="font-black text-lg group-hover:text-primary transition-colors">{player.username}</div>
-                            <div className="text-xs text-muted font-bold">{player.guild || 'No Guild'}</div>
+                  {loading && players.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-20 text-center text-muted italic">Loading hunters...</td>
+                    </tr>
+                  ) : (
+                    players.map((player, index) => (
+                      <motion.tr
+                        key={player.user_id}
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="border-b border-white/5 hover:bg-white/5 transition-colors group cursor-pointer"
+                      >
+                        <td className="px-8 py-6">
+                          <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-black text-sm ${
+                            index === 0 ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/20' :
+                            index === 1 ? 'bg-gray-400 text-black' :
+                            index === 2 ? 'bg-amber-700 text-white' : 'bg-white/10 text-muted'
+                          }`}>
+                            {index + 1}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent opacity-80" />
+                            <div>
+                              <div className="font-black text-lg group-hover:text-primary transition-colors">{player.username}</div>
+                              <div className="text-xs text-muted font-bold">{player.guild || 'No Guild'}</div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] font-black uppercase tracking-tighter text-muted group-hover:text-white transition-colors">
-                          {player.rank}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6 text-right font-black text-white group-hover:text-accent transition-colors">
-                        {player.level}
-                      </td>
-                      <td className="px-8 py-6 text-right font-black text-primary text-lg">
-                        {player.xp.toLocaleString()}
-                      </td>
-                    </motion.tr>
-                  ))}
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] font-black uppercase tracking-tighter text-muted group-hover:text-white transition-colors">
+                            {player.rank || 'E-Rank'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-right font-black text-white group-hover:text-accent transition-colors">
+                          {player.level}
+                        </td>
+                        <td className="px-8 py-6 text-right font-black text-primary text-lg">
+                          {player.xp.toLocaleString()}
+                        </td>
+                      </motion.tr>
+                    ))
+                  )}
                 </AnimatePresence>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Mobile View / Empty State */}
         {players.length === 0 && !loading && (
           <div className="py-24 text-center">
             <div className="text-6xl mb-6 opacity-30">💀</div>
