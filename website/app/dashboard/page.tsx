@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
+import { LOCKED_GUILD_ID, EMOJIS, getEmojiUrl } from '../../lib/constants';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('Overview');
@@ -13,21 +14,17 @@ const Dashboard = () => {
   const tabs = ['Overview', 'Inventory', 'Shadows', 'Cards'];
 
   useEffect(() => {
-    // In a real app, you might get the ID from a session or URL
-    // For now, let's try to fetch the top player as a "Live Demo" 
-    // or use a specific ID if provided in URL
     const searchParams = new URLSearchParams(window.location.search);
     const id = searchParams.get('id');
     
     const fetchPlayerData = async (targetId: string | null) => {
       setLoading(true);
       try {
-        let query = supabase.from('hunters').select('*');
+        let query = supabase.from('hunters').select('*').eq('guild_id', LOCKED_GUILD_ID);
         
         if (targetId) {
           query = query.eq('user_id', targetId);
         } else {
-          // Default to top player if no ID
           query = query.order('xp', { ascending: false }).limit(1);
         }
 
@@ -140,7 +137,9 @@ const Dashboard = () => {
                   <div className="text-[10px] text-muted font-black uppercase tracking-widest">Gold Balance</div>
                   <div className="text-lg font-black text-yellow-500">{(player.gold || 0).toLocaleString()}</div>
                </div>
-               <div className="w-10 h-10 bg-yellow-500/10 rounded-lg flex items-center justify-center text-yellow-500">💰</div>
+               <div className="w-10 h-10 bg-yellow-500/10 rounded-lg flex items-center justify-center text-yellow-500">
+                  <img src={getEmojiUrl(EMOJIS.GOLD)} className="w-6 h-6" alt="Gold" />
+               </div>
             </div>
           </motion.div>
 
@@ -152,12 +151,15 @@ const Dashboard = () => {
             className="grid grid-cols-2 gap-4"
           >
             {[
-              { label: 'STR', val: player.strength || 10 },
-              { label: 'AGI', val: player.agility || 10 },
-              { label: 'INT', val: player.intelligence || 10 },
-              { label: 'VIT', val: player.vitality || 10 },
+              { label: 'STR', val: player.strength || 10, emoji: EMOJIS.STRENGTH },
+              { label: 'AGI', val: player.agility || 10, emoji: EMOJIS.AGILITY },
+              { label: 'INT', val: player.intelligence || 10, emoji: EMOJIS.INTELLIGENCE },
+              { label: 'VIT', val: player.vitality || 10, emoji: EMOJIS.VITALITY },
             ].map((stat, i) => (
               <div key={stat.label} className="glass p-6 text-center group hover:bg-white/5 transition-all">
+                <div className="flex justify-center mb-2">
+                  <img src={getEmojiUrl(stat.emoji)} className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" alt={stat.label} />
+                </div>
                 <div className="text-muted text-[10px] font-black uppercase tracking-widest mb-1 group-hover:text-primary transition-colors">{stat.label}</div>
                 <div className="text-2xl font-black text-white group-hover:text-shadow-glow transition-all">{stat.val}</div>
               </div>

@@ -46,8 +46,8 @@ const Hero = () => {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-muted text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed"
         >
-          Embark on an epic journey. Hunt monsters, complete dungeons, 
-          level up your hunter, and assemble your army of shadows.
+          Rise as the strongest hunter. Join the official server guild, 
+          clear high-rank dungeons, and build your own shadow army.
         </motion.p>
 
         <motion.div 

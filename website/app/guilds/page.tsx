@@ -1,83 +1,101 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '../../lib/supabase';
+import { LOCKED_GUILD_ID, EMOJIS, getEmojiUrl } from '../../lib/constants';
 
-const guilds = [
-  { name: 'Solo Levelers', power: '24.5M', members: 48, level: 15, boss: 'Kamish Defeated' },
-  { name: 'Hunters', power: '18.2M', members: 40, level: 12, boss: 'High Orc King' },
-  { name: 'White Tiger', power: '15.1M', members: 35, level: 10, boss: 'Ice Elf Chieftain' },
-  { name: 'Scavenger', power: '22.8M', members: 45, level: 14, boss: 'Magma Beast' },
-];
+const GuildPage = () => {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    totalPower: 0,
+    topRank: 'N/A',
+    guildName: 'Monarch Alliance' // Default
+  });
 
-const GuildsPage = () => {
+  useEffect(() => {
+    const fetchGuildData = async () => {
+      setLoading(true);
+      try {
+        const { data, count, error } = await supabase
+          .from('hunters')
+          .select('*', { count: 'exact' })
+          .eq('guild_id', LOCKED_GUILD_ID);
+
+        if (error) throw error;
+        if (data) {
+          const power = data.reduce((acc, h) => acc + (h.xp || 0), 0);
+          setStats({
+            totalMembers: count || 0,
+            totalPower: power,
+            topRank: data[0]?.rank || 'S-Rank',
+            guildName: 'Solo Level Up Official'
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchGuildData();
+  }, []);
+
   return (
     <div className="pt-32 pb-24 px-6 relative z-10 min-h-screen bg-background text-white">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-16 flex flex-col md:flex-row justify-between items-end gap-8">
-          <div className="flex-1">
-            <h1 className="text-6xl font-black mb-6 uppercase tracking-tighter title-glow">
-              <span className="text-primary italic">Guild</span> Rankings
-            </h1>
-            <p className="text-muted text-lg max-w-2xl leading-relaxed">
-              Powerful alliances fighting for supremacy. Joint forces to conquer 
-              S-Rank dungeons and dominated the world guilds leaderboard.
-            </p>
-          </div>
-          <button className="bg-white/5 border border-white/10 hover:bg-white/10 px-8 py-4 rounded-full font-black text-sm uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shadow-white/5">
-            Create Guild
-          </button>
+        <header className="mb-16">
+          <h1 className="text-6xl font-black mb-6 uppercase tracking-tighter title-glow">
+            Guild <span className="text-primary italic">Stats</span>
+          </h1>
+          <p className="text-muted text-lg max-w-2xl leading-relaxed">
+            Live status of our main alliance. Tracking members, power, 
+            and global standing in real-time.
+          </p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {guilds.map((guild, idx) => (
-            <motion.div
-              key={guild.name}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-              className="glass p-12 group hover:border-primary/50 hover:bg-white/5 transition-all overflow-hidden relative"
-            >
-              <div className="absolute top-0 right-0 p-8 text-4xl opacity-10 font-black italic">{idx + 1}</div>
-              <div className="flex items-center gap-8 mb-10">
-                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary to-accent-dim shadow-xl shadow-primary/20 flex items-center justify-center font-black text-5xl group-hover:scale-110 transition-transform duration-500 border border-white/5">
-                  {guild.name[0]}
-                </div>
-                <div>
-                  <h3 className="text-3xl font-black uppercase tracking-tight group-hover:text-primary transition-colors">{guild.name}</h3>
-                  <div className="text-accent font-black text-xs uppercase tracking-widest">Level {guild.level} Alliance</div>
-                </div>
-              </div>
+        <div className="glass p-12 overflow-hidden relative">
+           <div className="absolute top-0 right-0 p-12 opacity-5">
+              <img src={getEmojiUrl(EMOJIS.RANK)} className="w-64 h-64 grayscale" alt="" />
+           </div>
 
-              <div className="grid grid-cols-3 gap-6 mb-10">
-                <div className="bg-white/5 p-6 rounded-2xl border border-white/5 text-center group-hover:border-primary/30 transition-all">
-                  <div className="text-muted text-[10px] uppercase font-black tracking-widest mb-1">Total Power</div>
-                  <div className="text-xl font-black title-glow">{guild.power}</div>
-                </div>
-                <div className="bg-white/5 p-6 rounded-2xl border border-white/5 text-center group-hover:border-primary/30 transition-all">
-                  <div className="text-muted text-[10px] uppercase font-black tracking-widest mb-1">Members</div>
-                  <div className="text-xl font-black">{guild.members}</div>
-                </div>
-                <div className="bg-white/5 p-6 rounded-2xl border border-white/5 text-center group-hover:border-primary/30 transition-all">
-                  <div className="text-muted text-[10px] uppercase font-black tracking-widest mb-1">Rank</div>
-                  <div className="text-xl font-black text-primary">#{idx + 1}</div>
-                </div>
+           <div className="flex flex-col md:flex-row items-center gap-12 mb-16 relative z-10">
+              <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-primary to-accent shadow-2xl shadow-primary/20 flex items-center justify-center font-black text-6xl border border-white/10 uppercase">
+                 {stats.guildName[0]}
               </div>
+              <div className="text-center md:text-left">
+                 <h2 className="text-4xl font-black uppercase tracking-tight mb-2 tracking-tighter">{stats.guildName}</h2>
+                 <div className="text-primary font-black text-sm uppercase tracking-widest flex items-center justify-center md:justify-start gap-2">
+                    <img src={getEmojiUrl(EMOJIS.SUCCESS)} className="w-4 h-4" alt="" /> Official Server Guild
+                 </div>
+              </div>
+           </div>
 
-              <div className="flex justify-between items-center py-6 px-8 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all group-hover:border-accent shadow-inner">
-                <div className="flex gap-4 items-center">
-                  <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-sm shadow-inner group-hover:bg-accent group-hover:text-white transition-all">⚔️</div>
-                  <div className="text-sm font-bold text-muted group-hover:text-white transition-colors">Latest Conquest: <span className="text-white font-black">{guild.boss}</span></div>
-                </div>
-                <div className="text-accent text-xs font-black uppercase tracking-widest">Details →</div>
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
+              <div className="bg-white/5 border border-white/5 p-10 rounded-3xl hover:border-primary/30 transition-all">
+                 <div className="text-muted text-xs font-black uppercase tracking-widest mb-4">Total Members</div>
+                 <div className="text-4xl font-black flex items-center gap-4">
+                    {stats.totalMembers} <span className="text-lg text-primary opacity-50">/ 100</span>
+                 </div>
               </div>
-            </motion.div>
-          ))}
+              <div className="bg-white/5 border border-white/5 p-10 rounded-3xl hover:border-accent/30 transition-all">
+                 <div className="text-muted text-xs font-black uppercase tracking-widest mb-4">Combat Power</div>
+                 <div className="text-4xl font-black text-accent">{(stats.totalPower / 1000).toFixed(1)}K</div>
+              </div>
+              <div className="bg-white/5 border border-white/5 p-10 rounded-3xl hover:border-primary/30 transition-all">
+                 <div className="text-muted text-xs font-black uppercase tracking-widest mb-4">Main Rank</div>
+                 <div className="text-4xl font-black title-glow">{stats.topRank}</div>
+              </div>
+           </div>
+        </div>
+
+        <div className="mt-12 text-center">
+           <p className="text-muted text-sm font-medium">Want to join our guild? Reach out on our Discord server.</p>
         </div>
       </div>
     </div>
   );
 };
 
-export default GuildsPage;
+export default GuildPage;

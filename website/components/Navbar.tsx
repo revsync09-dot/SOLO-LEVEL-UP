@@ -27,7 +27,7 @@ const Navbar = () => {
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
           <Link href="/leaderboard" className="hover:text-white transition-colors">Leaderboard</Link>
           <Link href="/stats" className="hover:text-white transition-colors">Stats</Link>
-          <Link href="/guilds" className="hover:text-white transition-colors">Guilds</Link>
+          <Link href="/guilds" className="hover:text-white transition-colors">Guild</Link>
         </div>
 
         <Link 

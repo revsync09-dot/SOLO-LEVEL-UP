@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
+import { LOCKED_GUILD_ID, EMOJIS, getEmojiUrl } from '../../lib/constants';
 
 const Leaderboard = () => {
   const [activeTab, setActiveTab] = useState('Global');
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
 
-  const tabs = ['Global', 'Monthly', 'Weekly', 'Guild'];
+  const tabs = ['Global', 'Monthly', 'Weekly'];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -18,10 +19,9 @@ const Leaderboard = () => {
         let query = supabase
           .from('hunters')
           .select('*')
+          .eq('guild_id', LOCKED_GUILD_ID)
           .order('xp', { ascending: false })
           .limit(50);
-        
-        // Tab-specific logic could be added here
         
         const { data, error } = await query;
         if (error) throw error;
@@ -91,8 +91,14 @@ const Leaderboard = () => {
                 <tr className="border-b border-white/5 bg-white/5">
                   <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest w-20">No.</th>
                   <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest">Hunter</th>
-                  <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest">Rank</th>
-                  <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest text-right">LVL</th>
+                  <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest flex items-center gap-2">
+                    <img src={getEmojiUrl(EMOJIS.RANK)} className="w-4 h-4" alt="Rank" /> Rank
+                  </th>
+                  <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest text-right">
+                    <div className="flex justify-end items-center gap-2">
+                      <img src={getEmojiUrl(EMOJIS.LEVEL)} className="w-4 h-4" alt="LVL" /> LVL
+                    </div>
+                  </th>
                   <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest text-right">XP Total</th>
                 </tr>
               </thead>
@@ -130,7 +136,8 @@ const Leaderboard = () => {
                           </div>
                         </td>
                         <td className="px-8 py-6">
-                          <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] font-black uppercase tracking-tighter text-muted group-hover:text-white transition-colors">
+                          <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[10px] font-black uppercase tracking-tighter text-muted group-hover:text-white transition-colors flex items-center gap-1 w-fit">
+                            <img src={getEmojiUrl(EMOJIS.RANK)} className="w-3 h-3" alt="" />
                             {player.rank || 'E-Rank'}
                           </span>
                         </td>
