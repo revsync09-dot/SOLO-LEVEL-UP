@@ -109,7 +109,8 @@ function profileRows(userId, selectedAmount = 1) {
       new ButtonBuilder().setCustomId(`alloc:${userId}:vitality:${amt}`).setLabel(`+VIT x${amt}`).setStyle(ButtonStyle.Primary)
     ),
     new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`shadows:${userId}`).setLabel("View Shadows").setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId(`shadows:${userId}`).setLabel("View Shadows").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setLabel("View Web Dashboard").setStyle(ButtonStyle.Link).setURL(`https://solo-level-up-delta.vercel.app/dashboard?id=${userId}`)
     ),
   ];
 }
