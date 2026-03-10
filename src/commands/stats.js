@@ -28,13 +28,19 @@ module.exports = {
 
       let hunter;
       if (targetUser.id === interaction.user.id) {
-        hunter = await ensureHunter({ userId: interaction.user.id, guildId: interaction.guildId });
+        hunter = await ensureHunter({ 
+          userId: interaction.user.id, 
+          guildId: interaction.guildId,
+          username: interaction.user.username,
+          avatarUrl: interaction.user.displayAvatarURL({ extension: "png", size: 256 })
+        });
       } else {
-        hunter = await getHunter(targetUser.id, interaction.guildId);
-        if (!hunter) {
-          await interaction.editReply({ content: `${targetUser.username} has no hunter profile in this server yet.` });
-          return;
-        }
+        hunter = await ensureHunter({ 
+          userId: targetUser.id, 
+          guildId: interaction.guildId,
+          username: targetUser.username,
+          avatarUrl: targetUser.displayAvatarURL({ extension: "png", size: 256 })
+        });
       }
 
       const [equippedShadows, cardBonus, ownedCards] = await Promise.all([

@@ -39,10 +39,12 @@ function isMissingTable(error) {
   );
 }
 
-function defaultStats(guildId, userId) {
+function defaultStats(guildId, userId, username = null, avatarUrl = null) {
   return {
     guild_id: guildId,
     user_id: userId,
+    username,
+    avatar_url: avatarUrl,
     combat_power: 0,
     top_gold: 0,
     dungeon_clears: 0,
@@ -56,9 +58,9 @@ function defaultStats(guildId, userId) {
   };
 }
 
-async function getStats(guildId, userId) {
+async function getStats(guildId, userId, username = null, avatarUrl = null) {
   const k = key(guildId, userId);
-  if (dbUnavailable) return memory.stats.get(k) || defaultStats(guildId, userId);
+  if (dbUnavailable) return memory.stats.get(k) || defaultStats(guildId, userId, username, avatarUrl);
   const { data, error } = await supabase
     .from("event_user_stats")
     .select("*")
@@ -68,19 +70,31 @@ async function getStats(guildId, userId) {
   if (error) {
     if (isMissingTable(error)) {
       dbUnavailable = true;
-      return memory.stats.get(k) || defaultStats(guildId, userId);
+      return memory.stats.get(k) || defaultStats(guildId, userId, username, avatarUrl);
     }
     throw error;
   }
-  const row = data || defaultStats(guildId, userId);
+  const row = data || defaultStats(guildId, userId, username, avatarUrl);
+  
+  // Update metadata if provided and empty/outdated
+  if (row && ((username && row.username !== username) || (avatarUrl && row.avatar_url !== avatarUrl))) {
+    row.username = username || row.username;
+    row.avatar_url = avatarUrl || row.avatar_url;
+    row.updated_at = isoNow();
+    await supabase.from("event_user_stats").upsert(row, { onConflict: "guild_id,user_id" });
+  }
+
   memory.stats.set(k, row);
   return row;
 }
 
-async function patchStats(guildId, userId, patch) {
+async function patchStats(guildId, userId, patch, username = null, avatarUrl = null) {
   const k = key(guildId, userId);
-  const prev = await getStats(guildId, userId);
+  const prev = await getStats(guildId, userId, username, avatarUrl);
   const next = { ...prev, ...patch, updated_at: isoNow() };
+  if (username) next.username = username;
+  if (avatarUrl) next.avatar_url = avatarUrl;
+  
   memory.stats.set(k, next);
   if (dbUnavailable) return next;
   const { data, error } = await supabase

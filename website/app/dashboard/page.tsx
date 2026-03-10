@@ -102,7 +102,11 @@ const Dashboard = () => {
               <div className="w-40 h-40 rounded-full border-2 border-primary/40 bg-gradient-to-br from-primary via-background to-accent p-2 shadow-2xl shadow-primary/20 group-hover:scale-105 transition-transform duration-500 overflow-hidden relative">
                 <div className="absolute inset-0 bg-primary/20 blur-xl opacity-50" />
                 <div className="w-full h-full bg-background rounded-full flex items-center justify-center font-black text-6xl text-primary text-shadow-glow">
-                  {player.username ? player.username[0] : '?'}
+                  {player.avatar_url ? (
+                    <img src={player.avatar_url} alt={player.username} className="w-full h-full object-cover rounded-full" />
+                  ) : (
+                    player.username ? player.username[0] : '?'
+                  )}
                 </div>
               </div>
               <div className="absolute -bottom-2 bg-primary px-6 py-1 rounded-full text-white font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/40 group-hover:scale-115 transition-transform">

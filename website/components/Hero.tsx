@@ -46,8 +46,8 @@ const Hero = () => {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-muted text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed"
         >
-          Rise as the strongest hunter. Join the official server guild, 
-          clear high-rank dungeons, and build your own shadow army.
+          We have developed for you Members of Lucent, a Live Stats System, So you can see your Stats better
+          and compare with others, We hope you will have fun with it.
         </motion.p>
 
         <motion.div 

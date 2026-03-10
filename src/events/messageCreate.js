@@ -290,7 +290,12 @@ module.exports = {
       }
 
       if (command === "start") {
-        const hunter = await ensureHunter({ userId, guildId });
+        const hunter = await ensureHunter({ 
+          userId, 
+          guildId, 
+          username: message.author.username, 
+          avatarUrl: message.author.displayAvatarURL({ extension: "png", size: 256 }) 
+        });
         const card = await generateStartCard(message.author, hunter);
         await message.reply({ files: [{ attachment: card, name: "start-card.png" }] });
         return;
@@ -321,7 +326,12 @@ module.exports = {
       }
 
       if (command === "profile") {
-        const hunter = await ensureHunter({ userId, guildId });
+        const hunter = await ensureHunter({ 
+          userId, 
+          guildId, 
+          username: message.author.username, 
+          avatarUrl: message.author.displayAvatarURL({ extension: "png", size: 256 }) 
+        });
         const card = await generateProfileCard(message.author, hunter);
         await message.reply({ files: [{ attachment: card, name: "profile-card.png" }], components: profileRows(userId) });
         return;
@@ -332,10 +342,19 @@ module.exports = {
         if (targetUser.bot) return void (await message.reply("Bots do not have hunter stats."));
         let hunter;
         if (targetUser.id === userId) {
-          hunter = await ensureHunter({ userId, guildId });
+          hunter = await ensureHunter({ 
+            userId, 
+            guildId, 
+            username: message.author.username, 
+            avatarUrl: message.author.displayAvatarURL({ extension: "png", size: 256 }) 
+          });
         } else {
-          hunter = await getHunter(targetUser.id, guildId);
-          if (!hunter) return void (await message.reply(`${targetUser.username} has no hunter profile in this server yet.`));
+          hunter = await ensureHunter({ 
+            userId: targetUser.id, 
+            guildId, 
+            username: targetUser.username, 
+            avatarUrl: targetUser.displayAvatarURL({ extension: "png", size: 256 }) 
+          });
         }
         const [equippedShadows, cardBonus, ownedCards] = await Promise.all([
           getEquippedShadows(targetUser.id, guildId),
@@ -422,7 +441,12 @@ module.exports = {
       }
 
       if (command === "hunt") {
-        const hunter = await ensureHunter({ userId, guildId });
+        const hunter = await ensureHunter({ 
+          userId, 
+          guildId, 
+          username: message.author.username, 
+          avatarUrl: message.author.displayAvatarURL({ extension: "png", size: 256 }) 
+        });
         const cd = await getCooldown(userId, guildId, "hunt");
         if (cd && new Date(cd.available_at).getTime() > Date.now()) return void (await message.reply(`Hunt cooldown active: ${cooldownRemaining(cd.available_at)}s`));
         const rewards = runHunt(hunter);
@@ -553,8 +577,18 @@ module.exports = {
           battleLocks.delete(lockKey);
           return void (await message.reply("Use a valid opponent mention. Example: `!battle @user`"));
         }
-        const attacker = await ensureHunter({ userId, guildId });
-        const defender = await ensureHunter({ userId: opponent.id, guildId });
+        const attacker = await ensureHunter({ 
+          userId, 
+          guildId, 
+          username: message.author.username, 
+          avatarUrl: message.author.displayAvatarURL({ extension: "png", size: 256 }) 
+        });
+        const defender = await ensureHunter({ 
+          userId: opponent.id, 
+          guildId, 
+          username: opponent.username, 
+          avatarUrl: opponent.displayAvatarURL({ extension: "png", size: 256 }) 
+        });
         const result = await runPvp(attacker, defender);
         const card = await generateBattleResultCard({ username: message.author.username }, { username: opponent.username }, result);
         const attackerDamage = Math.max(0, Number(result.defenderMaxHp || 0) - Number(result.defenderHp || 0));

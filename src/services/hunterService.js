@@ -47,10 +47,12 @@ async function getHunter(userId, guildId) {
   return normalizeHunterRecord(data);
 }
 
-async function createHunter({ userId, guildId }) {
+async function createHunter({ userId, guildId, username = null, avatarUrl = null }) {
   const payload = {
     user_id: userId,
     guild_id: guildId,
+    username,
+    avatar_url: avatarUrl,
     level: 1,
     exp: 0,
     rank: "E-Rank",
@@ -75,7 +77,13 @@ async function createHunter({ userId, guildId }) {
     // Race: another request created this hunter already — return existing
     if (error.code === "23505") {
       const existing = await getHunter(userId, guildId);
-      if (existing) return existing;
+      if (existing) {
+        // Update if missing metadata
+        if (!existing.username && username) {
+          await supabase.from("hunters").update({ username, avatar_url: avatarUrl }).eq("user_id", userId).eq("guild_id", guildId);
+        }
+        return existing;
+      }
       throw error;
     }
 
@@ -92,10 +100,22 @@ async function createHunter({ userId, guildId }) {
   throw new Error("Failed to create hunter due to unresolved schema mismatch.");
 }
 
-async function ensureHunter({ userId, guildId }) {
+async function ensureHunter({ userId, guildId, username = null, avatarUrl = null }) {
   const existing = await getHunter(userId, guildId);
-  if (existing) return existing;
-  return createHunter({ userId, guildId });
+  if (existing) {
+    if ((username && existing.username !== username) || (avatarUrl && existing.avatar_url !== avatarUrl)) {
+      const { data } = await supabase
+        .from("hunters")
+        .update({ username, avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .eq("guild_id", guildId)
+        .select("*")
+        .single();
+      if (data) return normalizeHunterRecord(data);
+    }
+    return existing;
+  }
+  return createHunter({ userId, guildId, username, avatarUrl });
 }
 
 async function addXpAndGold(userId, guildId, xpGain, goldGain) {

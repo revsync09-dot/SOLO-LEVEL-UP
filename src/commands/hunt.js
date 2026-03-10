@@ -12,7 +12,12 @@ const { computePower } = require("../services/combatService");
 module.exports = {
   data: new SlashCommandBuilder().setName("hunt").setDescription("Quick hunt for small XP and gold."),
   async execute(interaction) {
-    const hunter = await ensureHunter({ userId: interaction.user.id, guildId: interaction.guildId });
+    const hunter = await ensureHunter({ 
+      userId: interaction.user.id, 
+      guildId: interaction.guildId,
+      username: interaction.user.username,
+      avatarUrl: interaction.user.displayAvatarURL({ extension: "png", size: 256 })
+    });
     const cd = await getCooldown(interaction.user.id, interaction.guildId, "hunt");
 
     if (cd && new Date(cd.available_at).getTime() > Date.now()) {

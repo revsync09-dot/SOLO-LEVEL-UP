@@ -21,7 +21,7 @@ const Leaderboard = () => {
         // Fetch hunter usernames for mapping
         const { data: hMap, error: mError } = await supabase
           .from('hunters')
-          .select('user_id, username, rank')
+          .select('user_id, username, rank, avatar_url')
           .eq('guild_id', GID);
         
         const userMap = new Map((hMap || []).map(h => [h.user_id, h]));
@@ -71,6 +71,7 @@ const Leaderboard = () => {
           const processed = data.map(row => ({
             ...row,
             username: row.username || userMap.get(row.user_id)?.username || `Hunter_${row.user_id?.slice(-4)}`,
+            avatar_url: row.avatar_url || userMap.get(row.user_id)?.avatar_url,
             rank: row.rank || userMap.get(row.user_id)?.rank || 'E-Rank',
             displayValue: row[categoryField] || 0
           }));
@@ -94,7 +95,7 @@ const Leaderboard = () => {
             Hunter <span className="text-primary">Ranking</span>
           </h1>
           <p className="text-muted text-lg max-w-2xl">
-            See who stands at the top of the world. Data is updated <span className="text-accent underline decoration-accent/30 decoration-2 underline-offset-4">live</span> as hunters complete dungeons.
+            See your live stats and compare with others. Data will automatically update as hunters complete dungeons.
           </p>
         </header>
 
@@ -160,7 +161,11 @@ const Leaderboard = () => {
                         </td>
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent opacity-80" />
+                            {player.avatar_url ? (
+                                <img src={player.avatar_url} alt="" className="w-11 h-11 rounded-full border-2 border-primary/20 shadow-lg" />
+                            ) : (
+                                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary to-accent opacity-80" />
+                            )}
                             <div>
                               <div className="font-black text-lg group-hover:text-primary transition-colors">{player.username}</div>
                               <div className="text-xs text-muted font-bold">{player.guild || 'No Guild'}</div>
