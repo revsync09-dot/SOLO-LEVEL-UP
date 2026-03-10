@@ -16,43 +16,68 @@ const Leaderboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch hunter usernames for mapping (for users who might not be in hunters table yet or for cross-referencing)
-        const { data: hMap } = await supabase.from('hunters').select('user_id, username, rank');
+        const GID = LOCKED_GUILD_ID || '1425973312588091394';
+        
+        // Fetch hunter usernames for mapping
+        const { data: hMap, error: mError } = await supabase
+          .from('hunters')
+          .select('user_id, username, rank')
+          .eq('guild_id', GID);
+        
         const userMap = new Map((hMap || []).map(h => [h.user_id, h]));
 
-        let query;
-        let field = 'xp';
+        let categoryField = 'xp';
+        let table = 'hunters';
 
-        if (activeTab === 'Global') {
-          query = supabase.from('hunters').select('*').order('xp', { ascending: false });
-          field = 'xp';
-        } else if (activeTab === 'Power') {
-          query = supabase.from('event_user_stats').select('*').order('combat_power', { ascending: false });
-          field = 'combat_power';
-        } else if (activeTab === 'Dungeons') {
-          query = supabase.from('event_user_stats').select('*').order('dungeon_clears', { ascending: false });
-          field = 'dungeon_clears';
-        } else {
-          query = supabase.from('event_user_stats').select('*').order('highest_damage', { ascending: false });
-          field = 'highest_damage';
+        switch (activeTab) {
+          case 'Global':
+            table = 'hunters';
+            categoryField = 'xp';
+            break;
+          case 'Power':
+            table = 'event_user_stats';
+            categoryField = 'combat_power';
+            break;
+          case 'Dungeons':
+            table = 'event_user_stats';
+            categoryField = 'dungeon_clears';
+            break;
+          case 'Damage':
+            table = 'event_user_stats';
+            categoryField = 'highest_damage';
+            break;
+          case 'Gold':
+            table = 'event_user_stats';
+            categoryField = 'top_gold';
+            break;
+          default:
+            table = 'hunters';
+            categoryField = 'xp';
         }
-        
-        const { data, error } = await query.eq('guild_id', LOCKED_GUILD_ID).limit(50);
-        if (error) throw error;
-        
+
+        const { data, error } = await supabase
+          .from(table)
+          .select('*')
+          .eq('guild_id', GID)
+          .order(categoryField, { ascending: false })
+          .limit(50);
+
+        if (error) {
+          console.error('Supabase Query Error:', error);
+          throw error;
+        }
+
         if (data) {
-          const mapped = data.map(p => ({
-            ...p,
-            username: p.username || userMap.get(p.user_id)?.username || `Hunter_${p.user_id?.slice(0, 4)}`,
-            rank: p.rank || userMap.get(p.user_id)?.rank || 'E-Rank',
-            level: p.level || 1,
-            displayValue: p[field] || 0,
-            fieldName: activeTab === 'Global' ? 'XP' : activeTab
+          const processed = data.map(row => ({
+            ...row,
+            username: row.username || userMap.get(row.user_id)?.username || `Hunter_${row.user_id?.slice(-4)}`,
+            rank: row.rank || userMap.get(row.user_id)?.rank || 'E-Rank',
+            displayValue: row[categoryField] || 0
           }));
-          setPlayers(mapped);
+          setPlayers(processed);
         }
       } catch (err) {
-        console.error('Error fetching leaderboard:', err);
+        console.error('Fatal fetch error:', err);
       } finally {
         setLoading(false);
       }

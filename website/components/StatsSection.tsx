@@ -27,7 +27,7 @@ const StatsSection = () => {
               <div className="text-4xl mb-6 transform group-hover:scale-110 transition-transform">
                 {stat.icon}
               </div>
-              <div className="text-3xl font-black mb-1 group-hover:title-glow transition-all" style={{ color: 'white' }}>
+              <div className="text-3xl font-black mb-1 group-hover:title-glow transition-all text-white">
                 {stat.value}
               </div>
               <div className="text-muted text-sm font-bold uppercase tracking-widest">

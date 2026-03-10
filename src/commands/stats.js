@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, MessageFlags } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { ensureHunter, getHunter, xpRequired } = require("../services/hunterService");
 const { generateStatsCard } = require("../services/cardGenerator");
 const { getEquippedShadows } = require("../services/shadowService");
@@ -61,8 +61,16 @@ module.exports = {
         topCards,
       });
 
+      const websiteButton = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel("View Live Profile")
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://solo-level-up-delta.vercel.app/dashboard?id=${targetUser.id}`)
+      );
+
       await interaction.editReply({
         files: [{ attachment: card, name: "stats-card.png" }],
+        components: [websiteButton],
       });
     } catch (error) {
       console.error("[stats:error]", error);
