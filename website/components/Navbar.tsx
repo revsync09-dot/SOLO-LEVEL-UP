@@ -29,13 +29,6 @@ const Navbar = () => {
           <Link href="/stats" className="hover:text-white transition-colors">Stats</Link>
           <Link href="/guilds" className="hover:text-white transition-colors">Guild</Link>
         </div>
-
-        <Link 
-          href="https://discord.com" 
-          className="bg-primary hover:bg-primary/80 text-white px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
-        >
-          Invite Bot
-        </Link>
       </div>
     </nav>
   );

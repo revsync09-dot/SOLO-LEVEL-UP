@@ -22,21 +22,18 @@ export default function Home() {
             Ready to <span className="text-primary italic">reawaken?</span>
           </h2>
           <p className="text-muted text-lg mb-12 max-w-xl mx-auto">
-            Join thousands of hunters already leveling up. The gates are open.
+            Join Lucent's strongest hunters. The gates are open and your destiny awaits.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-primary text-white font-bold py-4 px-12 rounded-full hover:scale-105 transition-all shadow-lg shadow-primary/30">
-              Invite to Discord
-            </button>
-            <button className="glass bg-white/5 py-4 px-12 rounded-full font-bold hover:bg-white/10 transition-all">
-              Join Support Server
-            </button>
+          <div className="flex justify-center">
+            <a href="/leaderboard" className="bg-primary text-white font-bold py-4 px-12 rounded-full hover:scale-105 transition-all shadow-lg shadow-primary/30">
+              View Leaderboard
+            </a>
           </div>
         </div>
       </section>
 
       <footer className="py-12 border-t border-white/5 text-center text-muted text-sm px-6">
-        <p>© 2026 Solo Level Up Bot. Designed for the ultimate hunters.</p>
+        <p>© 2026 SOLO LEVEL UP Bot. Designed for the ultimate hunters of Lucent.</p>
         <div className="mt-4 flex gap-6 justify-center">
           <a href="#" className="hover:text-primary transition-colors">Privacy</a>
           <a href="#" className="hover:text-primary transition-colors">Terms</a>

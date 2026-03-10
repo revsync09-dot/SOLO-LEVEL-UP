@@ -95,7 +95,7 @@ const Leaderboard = () => {
             Hunter <span className="text-primary">Ranking</span>
           </h1>
           <p className="text-muted text-lg max-w-2xl">
-            See your live stats and compare with others. Data will automatically update as hunters complete dungeons.
+            See who stands at the top of the Lucent server. Data is updated live as hunters complete dungeons.
           </p>
         </header>
 
@@ -168,7 +168,6 @@ const Leaderboard = () => {
                             )}
                             <div>
                               <div className="font-black text-lg group-hover:text-primary transition-colors">{player.username}</div>
-                              <div className="text-xs text-muted font-bold">{player.guild || 'No Guild'}</div>
                             </div>
                           </div>
                         </td>

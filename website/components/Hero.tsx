@@ -27,7 +27,7 @@ const Hero = () => {
           transition={{ duration: 0.8 }}
           className="bg-primary/10 border border-primary/20 backdrop-blur-sm px-4 py-1 rounded-full text-primary text-xs font-bold uppercase tracking-widest mb-6 inline-block"
         >
-          The Ultimate Discord RPG Experience
+          SOLO LEVEL UP DASHBOARD
         </motion.div>
 
         <motion.h1 
@@ -56,9 +56,6 @@ const Hero = () => {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="flex flex-col md:flex-row items-center justify-center gap-6"
         >
-          <button className="w-full md:w-auto px-10 py-4 glass bg-primary/20 text-white font-bold text-lg hover:bg-primary/40 transition-all hover:scale-105 active:scale-95 shadow-xl shadow-primary/10">
-            Invite Bot
-          </button>
           <button className="w-full md:w-auto px-10 py-4 glass bg-white/5 text-muted hover:text-white font-bold text-lg hover:bg-white/10 transition-all hover:scale-105 active:scale-95 border-white/10">
             View Leaderboard
           </button>
