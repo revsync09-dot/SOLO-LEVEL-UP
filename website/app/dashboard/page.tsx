@@ -25,14 +25,40 @@ const Dashboard = () => {
         if (targetId) {
           query = query.eq('user_id', targetId);
         } else {
-          query = query.order('xp', { ascending: false }).limit(1);
+          query = query.order('exp', { ascending: false }).limit(1);
         }
 
         const { data, error } = await query.single();
         if (error) throw error;
         if (data) {
-          setPlayer(data);
-          setUserId(data.user_id);
+          let updatedData = { ...data };
+          
+          if (!updatedData.username || !updatedData.avatar_url) {
+            try {
+              const res = await fetch("https://lucent-bot123.fly.dev/api/users/batch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_ids: [updatedData.user_id] })
+              });
+              if (res.ok) {
+                const freshDiscordData = await res.json();
+                const botData = freshDiscordData[updatedData.user_id];
+                if (botData) {
+                  updatedData.username = botData.username || updatedData.username || `Hunter_${updatedData.user_id.slice(-4)}`;
+                  updatedData.avatar_url = botData.avatar_url || updatedData.avatar_url;
+                }
+              }
+            } catch (err) {
+              console.error("Live Discord metadata fetch failed:", err);
+            }
+          }
+          
+          if (!updatedData.username) {
+            updatedData.username = `Hunter_${updatedData.user_id.slice(-4)}`;
+          }
+
+          setPlayer(updatedData);
+          setUserId(updatedData.user_id);
         }
       } catch (err) {
         console.error('Error fetching player:', err);

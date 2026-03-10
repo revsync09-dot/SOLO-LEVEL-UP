@@ -63,14 +63,60 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-function startHealthServer() {
+function startHealthServer(client) {
   const port = Number(process.env.PORT || 8080);
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
+    // Enable CORS for Vercel
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(200);
+      return res.end();
+    }
+
     if (req.url === "/healthz") {
       res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
       res.end("ok");
       return;
     }
+    
+    // API Route used by Vercel Dashboard to fetch Discord Avatars
+    if (req.url === "/api/users/batch" && req.method === "POST") {
+      let body = "";
+      req.on("data", chunk => { body += chunk; });
+      req.on("end", async () => {
+        try {
+          const { user_ids } = JSON.parse(body);
+          if (!Array.isArray(user_ids)) throw new Error("user_ids must be an array");
+          
+          const result = {};
+          await Promise.all(
+            user_ids.map(async id => {
+              try {
+                // Fetch dynamically using the bot's global token view
+                const u = await client.users.fetch(id);
+                result[id] = {
+                  username: u.username,
+                  avatar_url: u.displayAvatarURL({ extension: "png", size: 256 })
+                };
+              } catch (e) {
+                // ignore invalid users privately
+              }
+            })
+          );
+
+          res.writeHead(200, { "content-type": "application/json" });
+          return res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(400, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+      return;
+    }
+
     res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
     res.end("Solo Leveling bot is running");
   });
@@ -86,8 +132,6 @@ function startHealthServer() {
   });
 }
 
-startHealthServer();
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -97,6 +141,8 @@ const client = new Client({
   ],
 });
 client.commands = new Collection();
+
+startHealthServer(client);
 
 process.on("unhandledRejection", (error) => {
   console.error("[unhandledRejection]", error);

@@ -26,13 +26,13 @@ const Leaderboard = () => {
         
         const userMap = new Map((hMap || []).map(h => [h.user_id, h]));
 
-        let categoryField = 'xp';
+        let categoryField = 'exp';
         let table = 'hunters';
 
         switch (activeTab) {
           case 'Global':
             table = 'hunters';
-            categoryField = 'xp';
+            categoryField = 'exp';
             break;
           case 'Power':
             table = 'event_user_stats';
@@ -52,7 +52,7 @@ const Leaderboard = () => {
             break;
           default:
             table = 'hunters';
-            categoryField = 'xp';
+            categoryField = 'exp';
         }
 
         const { data, error } = await supabase
@@ -68,13 +68,41 @@ const Leaderboard = () => {
         }
 
         if (data) {
-          const processed = data.map(row => ({
-            ...row,
-            username: row.username || userMap.get(row.user_id)?.username || `Hunter_${row.user_id?.slice(-4)}`,
-            avatar_url: row.avatar_url || userMap.get(row.user_id)?.avatar_url,
-            rank: row.rank || userMap.get(row.user_id)?.rank || 'E-Rank',
-            displayValue: row[categoryField] || 0
-          }));
+          const userIdsToFetch = Array.from(new Set(
+            data.filter(row => !userMap.has(row.user_id) || (!userMap.get(row.user_id)?.username && !row.username))
+                .map(row => row.user_id)
+          ));
+
+          let freshDiscordData: Record<string, { username: string, avatar_url: string }> = {};
+          
+          if (userIdsToFetch.length > 0) {
+            try {
+              // Fetch missing user data live from the bot
+              const res = await fetch("https://lucent-bot123.fly.dev/api/users/batch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_ids: userIdsToFetch })
+              });
+              if (res.ok) {
+                freshDiscordData = await res.json();
+              }
+            } catch (err) {
+              console.error("Discord metadata fetch failed:", err);
+            }
+          }
+
+          const processed = data.map(row => {
+            const botData: any = freshDiscordData[row.user_id] || {};
+            const mapData: any = userMap.get(row.user_id) || {};
+            
+            return {
+              ...row,
+              username: row.username || botData.username || mapData.username || `Hunter_${row.user_id?.slice(-4)}`,
+              avatar_url: row.avatar_url || botData.avatar_url || mapData.avatar_url,
+              rank: row.rank || mapData.rank || 'E-Rank',
+              displayValue: row[categoryField] || 0
+            };
+          });
           setPlayers(processed);
         }
       } catch (err) {
