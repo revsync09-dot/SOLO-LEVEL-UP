@@ -10,22 +10,47 @@ const Leaderboard = () => {
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState<any[]>([]);
 
-  const tabs = ['Global', 'Monthly', 'Weekly'];
+  const tabs = ['Global', 'Power', 'Dungeons', 'Damage'];
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        let query = supabase
-          .from('hunters')
-          .select('*')
-          .eq('guild_id', LOCKED_GUILD_ID)
-          .order('xp', { ascending: false })
-          .limit(50);
+        // Fetch hunter usernames for mapping (for users who might not be in hunters table yet or for cross-referencing)
+        const { data: hMap } = await supabase.from('hunters').select('user_id, username, rank');
+        const userMap = new Map((hMap || []).map(h => [h.user_id, h]));
+
+        let query;
+        let field = 'xp';
+
+        if (activeTab === 'Global') {
+          query = supabase.from('hunters').select('*').order('xp', { ascending: false });
+          field = 'xp';
+        } else if (activeTab === 'Power') {
+          query = supabase.from('event_user_stats').select('*').order('combat_power', { ascending: false });
+          field = 'combat_power';
+        } else if (activeTab === 'Dungeons') {
+          query = supabase.from('event_user_stats').select('*').order('dungeon_clears', { ascending: false });
+          field = 'dungeon_clears';
+        } else {
+          query = supabase.from('event_user_stats').select('*').order('highest_damage', { ascending: false });
+          field = 'highest_damage';
+        }
         
-        const { data, error } = await query;
+        const { data, error } = await query.eq('guild_id', LOCKED_GUILD_ID).limit(50);
         if (error) throw error;
-        if (data) setPlayers(data);
+        
+        if (data) {
+          const mapped = data.map(p => ({
+            ...p,
+            username: p.username || userMap.get(p.user_id)?.username || `Hunter_${p.user_id?.slice(0, 4)}`,
+            rank: p.rank || userMap.get(p.user_id)?.rank || 'E-Rank',
+            level: p.level || 1,
+            displayValue: p[field] || 0,
+            fieldName: activeTab === 'Global' ? 'XP' : activeTab
+          }));
+          setPlayers(mapped);
+        }
       } catch (err) {
         console.error('Error fetching leaderboard:', err);
       } finally {
@@ -34,24 +59,6 @@ const Leaderboard = () => {
     };
 
     fetchData();
-
-    // LIVE REALTIME UPDATES
-    const channel = supabase
-      .channel('hunter-updates')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'hunters' },
-        (payload) => {
-          console.log('Live update received:', payload);
-          // Refresh list when data changes
-          fetchData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [activeTab]);
 
   return (
@@ -145,7 +152,7 @@ const Leaderboard = () => {
                           {player.level}
                         </td>
                         <td className="px-8 py-6 text-right font-black text-primary text-lg">
-                          {player.xp.toLocaleString()}
+                          {(player.displayValue || 0).toLocaleString()}
                         </td>
                       </motion.tr>
                     ))
