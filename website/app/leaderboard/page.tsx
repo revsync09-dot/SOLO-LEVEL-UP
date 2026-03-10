@@ -161,6 +161,7 @@ const Leaderboard = () => {
                     </div>
                   </th>
                   <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest text-right">XP Total</th>
+                  <th className="px-8 py-6 text-xs text-muted font-bold uppercase tracking-widest text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -171,12 +172,13 @@ const Leaderboard = () => {
                     </tr>
                   ) : (
                     players.map((player, index) => (
-                      <motion.tr
+                        <motion.tr
                         key={player.user_id}
                         layout
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="border-b border-white/5 hover:bg-white/5 transition-colors group cursor-pointer"
+                        onClick={() => window.location.href = `/dashboard?id=${player.user_id}`}
                       >
                         <td className="px-8 py-6">
                           <span className={`w-8 h-8 flex items-center justify-center rounded-lg font-black text-sm ${
@@ -210,6 +212,11 @@ const Leaderboard = () => {
                         </td>
                         <td className="px-8 py-6 text-right font-black text-primary text-lg">
                           {(player.displayValue || 0).toLocaleString()}
+                        </td>
+                        <td className="px-8 py-6 text-center">
+                          <button className="px-4 py-2 rounded-lg bg-white/5 hover:bg-primary/20 hover:text-primary transition-all text-xs font-bold uppercase tracking-widest text-muted border border-white/10 group-hover:border-primary/30">
+                            View
+                          </button>
                         </td>
                       </motion.tr>
                     ))
