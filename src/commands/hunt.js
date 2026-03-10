@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { ensureHunter, addXpAndGold } = require("../services/hunterService");
 const { getCooldown, setCooldown } = require("../services/cooldownService");
 const { runHunt } = require("../services/combatService");
@@ -6,6 +6,8 @@ const { cooldownRemaining, nextCooldown } = require("../utils/cooldownHelper");
 const { sendStatus } = require("../utils/statusMessage");
 const { generateHuntResultCard } = require("../services/cardGenerator");
 const { tryGrantSingleCard } = require("../services/cardsService");
+const { recordHunt, patchStats, getFactionXpBoost } = require("../services/eventService");
+const { computePower } = require("../services/combatService");
 
 module.exports = {
   data: new SlashCommandBuilder().setName("hunt").setDescription("Quick hunt for small XP and gold."),
@@ -20,14 +22,21 @@ module.exports = {
     }
 
     const rewards = runHunt(hunter);
+    const boost = await getFactionXpBoost(interaction.guildId, interaction.user.id);
+    const boostedXp = Math.floor(Number(rewards.xp || 0) * Number(boost.multiplier || 1));
     const progression = await addXpAndGold(
       interaction.user.id,
       interaction.guildId,
-      rewards.xp,
+      boostedXp,
       rewards.gold
     );
     const { hunter: updated, levelsGained } = progression;
     await setCooldown(interaction.user.id, interaction.guildId, "hunt", nextCooldown(300));
+    await recordHunt(interaction.guildId, interaction.user.id);
+    await patchStats(interaction.guildId, interaction.user.id, {
+      combat_power: computePower(updated, []),
+      top_gold: Number(updated.gold || 0),
+    });
     const cardDrop = await tryGrantSingleCard(updated);
 
     const card = await generateHuntResultCard(interaction.user, rewards, levelsGained);
@@ -37,9 +46,15 @@ module.exports = {
     }
 
     await interaction.reply({
-      content: cardDrop.granted ? `You unlocked **${cardDrop.card.name}** (drop chance: 0.0025%).` : undefined,
+      content:
+        [
+          cardDrop.granted ? `You unlocked **${cardDrop.card.name}** (drop chance: 0.025%).` : "",
+          boost.multiplier > 1 ? `Faction bonus active (+10% XP for **${boost.faction}**).` : "",
+        ]
+          .filter(Boolean)
+          .join("\n") || undefined,
       files,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };

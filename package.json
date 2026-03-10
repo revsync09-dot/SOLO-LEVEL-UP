@@ -5,8 +5,10 @@
   "main": "src/bot.js",
   "scripts": {
     "start": "node src/bot.js",
+    "start:test": "set BOT_MODE=test&& set PORT=8081&& node src/bot.js",
     "dev": "node --watch src/bot.js",
-    "deploy:commands": "node src/scripts/deployCommands.js"
+    "deploy:commands": "node src/scripts/deployCommands.js",
+    "deploy:commands:test": "set BOT_MODE=test&& node src/scripts/deployCommands.js"
   },
   "keywords": [
     "discord",

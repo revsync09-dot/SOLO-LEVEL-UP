@@ -5,6 +5,7 @@ const { RANKS, RANK_THRESHOLDS } = require("../utils/constants");
 const { sendStatus } = require("../utils/statusMessage");
 
 const ALLOWED_USERS = new Set(["795466540140986368", "760194150452035595"]);
+const MAX_DELTA = 1_000_000_000;
 
 function inferRank(level) {
   let current = "E-Rank";
@@ -58,6 +59,17 @@ module.exports = {
       await sendStatus(interaction, {
         ok: false,
         text: "Provide at least one value to add.",
+        ephemeral: true,
+      });
+      return;
+    }
+    const tooLarge = Object.values(deltas).find(
+      (v) => Number.isInteger(v) && Math.abs(Number(v)) > MAX_DELTA
+    );
+    if (tooLarge !== undefined) {
+      await sendStatus(interaction, {
+        ok: false,
+        text: `Value too large. Max absolute value per field is ${MAX_DELTA}.`,
         ephemeral: true,
       });
       return;

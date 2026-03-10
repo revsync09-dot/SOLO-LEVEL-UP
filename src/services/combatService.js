@@ -6,12 +6,20 @@ function computePower(hunter, shadows, cardBonus = 0) {
   const className = getHunterClass(hunter);
   const m = getClassMultipliers(className);
 
+  const { getHunterRace, getRaceBonuses } = require("./raceService");
+  const race = getHunterRace(hunter);
+  const rm = getRaceBonuses(race);
+
+  const { checkSetBonus } = require("./armorService");
+  const armorSet = checkSetBonus(hunter.inventory);
+  const am = armorSet ? armorSet.fullSetBonus : { str: 1, agi: 1, int: 1, vit: 1 };
+
   const shadowBonus = (shadows || []).reduce((sum, s) => sum + s.base_damage + s.ability_bonus, 0);
   
-  const effStr = Math.floor(hunter.strength * m.str);
-  const effAgi = Math.floor(hunter.agility * m.agi);
-  const effInt = Math.floor(hunter.intelligence * m.int);
-  const effVit = Math.floor(hunter.vitality * m.vit);
+  const effStr = Math.floor(hunter.strength * m.str * rm.str * (am.str || 1));
+  const effAgi = Math.floor(hunter.agility * m.agi * rm.agi * (am.agi || 1));
+  const effInt = Math.floor(hunter.intelligence * m.int * rm.int * (am.int || 1));
+  const effVit = Math.floor(hunter.vitality * m.vit * rm.vit * (am.vit || 1));
 
   return effStr * 2 + effAgi + Math.floor(effInt / 2) + effVit + shadowBonus + cardBonus;
 }

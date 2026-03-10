@@ -1,7 +1,38 @@
 const { supabase } = require("../lib/supabase");
 
+const INT_MIN = -2147483648;
+const INT_MAX = 2147483647;
+const INT_FIELDS = new Set([
+  "level",
+  "exp",
+  "gold",
+  "mana",
+  "strength",
+  "agility",
+  "intelligence",
+  "vitality",
+  "stat_points",
+  "shadow_slots",
+  "points",
+  "wins",
+  "losses",
+]);
+
+function clampInt32(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  if (n > INT_MAX) return INT_MAX;
+  if (n < INT_MIN) return INT_MIN;
+  return Math.trunc(n);
+}
+
 function normalizePatch(patch) {
   const next = { ...patch };
+  for (const key of Object.keys(next)) {
+    if (INT_FIELDS.has(key) && next[key] !== null && next[key] !== undefined) {
+      next[key] = clampInt32(next[key]);
+    }
+  }
   if ("inventory" in next) {
     next.inventory = Array.isArray(next.inventory) ? next.inventory : [];
   }

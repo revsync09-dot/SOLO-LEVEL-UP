@@ -7,7 +7,7 @@ const {
 } = require("discord.js");
 
 const RANK_UP_BANNER_URL =
-  "https://cdn.discordapp.com/attachments/1469861756548677853/1475648387473997834/images.png?ex=699e4027&is=699ceea7&hm=71a20c1e99cba06d93e62bd7b75558ac9ac5cd496771f29aa4810911c82f123f&";
+  "https://cdn.discordapp.com/attachments/1477018034169188362/1477030743736586342/565181ee-453c-4084-9b19-edccb5768403.png?ex=69a34793&is=69a1f613&hm=1e5381fb5f329a2ea4b4ec16d911419ee26b1f6ee19a2f96669b6b01157340f4&";
 
 function hasProgress(progression) {
   if (!progression) return false;

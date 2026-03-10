@@ -13,8 +13,6 @@ module.exports = {
       guildId: interaction.guildId,
     });
 
-    await interaction.reply(
-      buildShopPayload({ userId: interaction.user.id, hunter, page: 0 })
-    );
+    await interaction.reply(buildShopPayload({ userId: interaction.user.id, hunter, page: 0 }));
   },
 };

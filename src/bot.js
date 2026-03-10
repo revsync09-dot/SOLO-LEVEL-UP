@@ -1,7 +1,9 @@
-require("dotenv").config();
+const dotenvPath = process.env.DOTENV_CONFIG_PATH || process.env.BOT_ENV_FILE || ".env";
+require("dotenv").config({ path: dotenvPath });
 
 const fs = require("fs");
 const http = require("http");
+console.log("🚀 SOLO LEVELING BOT V2.1 STARTING (Node.js)");
 const path = require("path");
 const { Client, Collection, GatewayIntentBits } = require("discord.js");
 const { getConfig } = require("./config/config");

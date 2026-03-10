@@ -3,13 +3,22 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ContainerBuilder,
+  MessageFlags,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
   TextDisplayBuilder,
 } = require("discord.js");
 const { supabase } = require("../lib/supabase");
 const { DUNGEON_DIFFICULTIES } = require("../utils/constants");
-const { createLobby, summary } = require("./raidDungeonService");
+const {
+  createLobby,
+  summary,
+  startRaid,
+  getSession,
+  removeSession,
+  handleRoundTimeout,
+} = require("./raidDungeonService");
+const { buildBattlePayload, buildDefeatedPayload, buildRewardsPayload } = require("../utils/raidV2Renderer");
 
 const memoryConfig = new Map();
 const spawnJoinState = new Map();
@@ -20,6 +29,11 @@ const SPAWN_JOIN_COOLDOWN_MS = 20_000;
 const SPAWN_JOIN_TTL_MS = 3 * 60 * 60 * 1000;
 const AUTO_DUNGEON_BANNER_URL =
   "https://media.discordapp.net/attachments/1477018034169188362/1477023604771127327/a12065b307fca0a2b2018efc702d7a3b.gif?ex=69a340ed&is=69a1ef6d&hm=40e559eeef308b2082adcb3152e8bde539bbd56d79637b67416a70c730f547c5&=";
+const DUNGEON_PING_ROLE_ID = process.env.DUNGEON_PING_ROLE_ID || "1477381208773230604";
+const AUTO_LOBBY_START_MS = 30_000;
+const AUTO_ROUND_TIMEOUT_MS = 30_000;
+const lobbyAutoStartHandles = new Map();
+const autoRoundTimeoutHandles = new Map();
 
 const DUNGEON_TEMPLATES = [
   "Double Gate Ruins",
@@ -46,6 +60,114 @@ function pruneSpawnJoinState() {
   }
 }
 
+function clearLobbyAutoStart(sessionId) {
+  const key = String(sessionId || "");
+  const handle = lobbyAutoStartHandles.get(key);
+  if (handle) clearTimeout(handle);
+  lobbyAutoStartHandles.delete(key);
+}
+
+function clearAutoRoundTimeout(sessionId) {
+  const key = String(sessionId || "");
+  const handle = autoRoundTimeoutHandles.get(key);
+  if (handle) clearTimeout(handle);
+  autoRoundTimeoutHandles.delete(key);
+}
+
+function clearAllAutoRaidTimers(sessionId) {
+  clearLobbyAutoStart(sessionId);
+  clearAutoRoundTimeout(sessionId);
+}
+
+function scheduleAutoRoundTimeout({ client, guildId, channelId, messageId, sessionId, waitMs = AUTO_ROUND_TIMEOUT_MS }) {
+  clearAutoRoundTimeout(sessionId);
+  const key = String(sessionId || "");
+  const handle = setTimeout(async () => {
+    try {
+      const result = await handleRoundTimeout(key);
+      if (!result.ok) {
+        if (result.reason === "too_early") {
+          scheduleAutoRoundTimeout({
+            client,
+            guildId,
+            channelId,
+            messageId,
+            sessionId: key,
+            waitMs: Math.max(1000, Number(result.retryAfterMs || 1000)),
+          });
+        }
+        return;
+      }
+
+      const view = summary(result.session);
+      const guild = client.guilds.cache.get(guildId) || (await client.guilds.fetch(guildId).catch(() => null));
+      if (!guild) return;
+      const channel = guild.channels.cache.get(channelId) || (await guild.channels.fetch(channelId).catch(() => null));
+      if (!channel || !channel.isTextBased()) return;
+      const message = await channel.messages.fetch(messageId).catch(() => null);
+      if (message) {
+        await message.edit(buildBattlePayload(view, "auto"));
+      }
+
+      if (result.ended) {
+        if (view.defeated.length) {
+          await channel.send(buildDefeatedPayload(view));
+        }
+        const won = Boolean(result.finalResult && result.finalResult.won);
+        await channel.send(buildRewardsPayload(view, won));
+        clearAllAutoRaidTimers(key);
+        removeSession(key);
+        return;
+      }
+
+      if (result.progressedRound) {
+        scheduleAutoRoundTimeout({ client, guildId, channelId, messageId, sessionId: key });
+      }
+    } catch {
+      // noop
+    }
+  }, Math.max(1000, Number(waitMs || AUTO_ROUND_TIMEOUT_MS)));
+  autoRoundTimeoutHandles.set(key, handle);
+}
+
+function scheduleLobbyAutoStart({ client, guildId, channelId, messageId, sessionId }) {
+  clearLobbyAutoStart(sessionId);
+  const key = String(sessionId || "");
+  const handle = setTimeout(async () => {
+    try {
+      const session = getSession(key);
+      if (!session || session.state !== "lobby") return;
+
+      const guild = client.guilds.cache.get(guildId) || (await client.guilds.fetch(guildId).catch(() => null));
+      if (!guild) return;
+      const channel = guild.channels.cache.get(channelId) || (await guild.channels.fetch(channelId).catch(() => null));
+      if (!channel || !channel.isTextBased()) return;
+      const message = await channel.messages.fetch(messageId).catch(() => null);
+
+      const started = await startRaid(key, "auto");
+      if (!started.ok) {
+        if (started.reason === "empty") {
+          await channel.send("No hunters joined in 30 seconds. Spawn closed.");
+          clearAllAutoRaidTimers(key);
+          removeSession(key);
+        }
+        return;
+      }
+
+      const view = summary(started.session);
+      if (message) {
+        await message.edit(buildBattlePayload(view, "auto"));
+      }
+      scheduleAutoRoundTimeout({ client, guildId, channelId, messageId, sessionId: key });
+    } catch {
+      // noop
+    } finally {
+      lobbyAutoStartHandles.delete(key);
+    }
+  }, AUTO_LOBBY_START_MS);
+  lobbyAutoStartHandles.set(key, handle);
+}
+
 function isMissingSettingsTable(error) {
   return (
     error?.code === "42P01" ||
@@ -60,9 +182,47 @@ function normalizeConfig(row) {
     dungeon_channel_id: row.dungeon_channel_id || null,
     dungeon_interval_minutes: Number(row.dungeon_interval_minutes || 15),
     dungeon_enabled: row.dungeon_enabled !== false,
+    dungeon_ping_role_id: row.dungeon_ping_role_id || null,
     last_dungeon_at: row.last_dungeon_at || null,
     updated_at: row.updated_at || nowIso(),
   };
+}
+
+async function getDungeonPingRoleId(guildId) {
+  if (!guildId) return DUNGEON_PING_ROLE_ID || null;
+  const cfg = await getDungeonConfig(guildId).catch(() => null);
+  return cfg?.dungeon_ping_role_id || DUNGEON_PING_ROLE_ID || null;
+}
+
+async function setDungeonPingRoleId(guildId, roleId) {
+  const normalizedRoleId = roleId ? String(roleId) : null;
+  const old = memoryConfig.get(guildId) || { guild_id: guildId };
+  const next = { ...old, dungeon_ping_role_id: normalizedRoleId, updated_at: nowIso() };
+  memoryConfig.set(guildId, next);
+
+  if (dbUnavailable) return next;
+
+  const patch = { dungeon_ping_role_id: normalizedRoleId, updated_at: nowIso() };
+  let attempt = { ...patch };
+  for (let i = 0; i < 4; i += 1) {
+    const { error } = await supabase
+      .from("guild_settings")
+      .update(attempt)
+      .eq("guild_id", guildId);
+    if (!error) return next;
+    if (isMissingSettingsTable(error)) {
+      dbUnavailable = true;
+      return next;
+    }
+    const isMissingColumn = error.code === "PGRST204" && typeof error.message === "string";
+    if (!isMissingColumn) throw error;
+    const match = error.message.match(/'([^']+)' column/);
+    const missing = match && match[1];
+    if (!missing || !(missing in attempt)) throw error;
+    delete attempt[missing];
+  }
+
+  return next;
 }
 
 async function upsertDungeonConfig({ guildId, channelId, intervalMinutes = 15, enabled = true }) {
@@ -222,7 +382,7 @@ async function postDungeonSpawn(client, config) {
     `Rounds: **${view.maxRounds}**`,
     "",
     "Press **Join** to enter this raid.",
-    "Then press **Start Raid** to begin the round fight.",
+    "Raid starts automatically in **30 seconds**.",
     "Boss HP, defeated list, and rewards are live updated in the lobby view.",
     "Rounds progress automatically during battle.",
   ].join("\n");
@@ -235,13 +395,29 @@ async function postDungeonSpawn(client, config) {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`raid_join:${view.id}`).setStyle(ButtonStyle.Success).setLabel("Join"),
-    new ButtonBuilder().setCustomId(`raid_start:${view.id}`).setStyle(ButtonStyle.Primary).setLabel("Start Raid"),
     new ButtonBuilder().setCustomId(`raid_cancel:${view.id}`).setStyle(ButtonStyle.Secondary).setLabel("Cancel")
   );
+  container.addActionRowComponents(row);
 
-  await channel.send({
-    components: [container, row],
-    flags: 0x80, // Hardcoded IsComponentsV2 bit
+  const pingRoleId = await getDungeonPingRoleId(config.guild_id);
+  if (pingRoleId) {
+    await channel.send({
+      content: `<@&${pingRoleId}> Boss Spawned`,
+      allowedMentions: { roles: [pingRoleId] },
+    });
+  }
+
+  const sent = await channel.send({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
+
+  scheduleLobbyAutoStart({
+    client,
+    guildId: config.guild_id,
+    channelId: channel.id,
+    messageId: sent.id,
+    sessionId: view.id,
   });
 
   await markDungeonPosted(config.guild_id, nowIso());
@@ -277,7 +453,7 @@ async function postManualDungeonSpawn(client, { guildId, channelId }) {
     `Rounds: **${view.maxRounds}**`,
     "",
     "Press **Join** to enter this raid.",
-    "Then press **Start Raid** to begin the round fight.",
+    "Raid starts automatically in **30 seconds**.",
   ].join("\n");
 
   const container = new ContainerBuilder()
@@ -288,13 +464,29 @@ async function postManualDungeonSpawn(client, { guildId, channelId }) {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`raid_join:${view.id}`).setStyle(ButtonStyle.Success).setLabel("Join"),
-    new ButtonBuilder().setCustomId(`raid_start:${view.id}`).setStyle(ButtonStyle.Primary).setLabel("Start Raid"),
     new ButtonBuilder().setCustomId(`raid_cancel:${view.id}`).setStyle(ButtonStyle.Secondary).setLabel("Cancel")
   );
+  container.addActionRowComponents(row);
 
-  await channel.send({
-    components: [container, row],
-    flags: 0x80,
+  const pingRoleId = await getDungeonPingRoleId(guildId);
+  if (pingRoleId) {
+    await channel.send({
+      content: `<@&${pingRoleId}> Boss Spawned`,
+      allowedMentions: { roles: [pingRoleId] },
+    });
+  }
+
+  const sent = await channel.send({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
+
+  scheduleLobbyAutoStart({
+    client,
+    guildId,
+    channelId: channel.id,
+    messageId: sent.id,
+    sessionId: view.id,
   });
 
   return { ok: true };
@@ -371,8 +563,12 @@ function finishSpawnJoin(spawnId, userId, success) {
 module.exports = {
   upsertDungeonConfig,
   getDungeonConfig,
+  getDungeonPingRoleId,
+  setDungeonPingRoleId,
   postManualDungeonSpawn,
   startAutoDungeonLoop,
   reserveSpawnJoin,
   finishSpawnJoin,
 };
+
+

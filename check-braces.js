@@ -14,7 +14,7 @@ for (let i = 0; i < lines.length; i++) {
     if (char === '{') braceCount++;
     if (char === '}') braceCount--;
   }
-  if (i > 1900) { // Check near the end
+  if (i > 1900) { 
     console.log(`Line ${lineNum}: ${line.slice(0, 80)} | Braces: ${braceCount}`);
   }
 }

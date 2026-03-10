@@ -1,4 +1,4 @@
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { ensureHunter } = require("../services/hunterService");
 const {
   HUNTER_CLASSES,

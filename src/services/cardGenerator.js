@@ -4,20 +4,15 @@ const { Canvas, FontLibrary, loadImage } = require("skia-canvas");
 const { normalizeRank, rankBadgeText, rankColor } = require("../utils/constants");
 const { randomInt } = require("../utils/math");
 
+const { getStatEmojiIds } = require("../config/emojis");
+
 const ASSETS_DIR = path.join(process.cwd(), "assets");
 const MAIN_BACKGROUND_PATH = path.join(ASSETS_DIR, "backgrounds", "Main_background.png");
 const emojiImageCache = new Map();
 
-const STAT_EMOJI_IDS = {
-  strength: "1475890708140392621",
-  agility: "1475914899870978160",
-  intelligence: "1475914937887887523",
-  vitality: "1475914963225940221",
-  gold: "1475915038182346894",
-  mana: "1475915084911087708",
-  level: "1475916361623408902",
-  rank: "1475916735860445358",
-};
+function getStatEmojiIdsMap() {
+  return getStatEmojiIds();
+}
 
 function drawEpic3DBox(ctx, x, y, w, h, baseColor, glowColor = null) {
   if (!glowColor) glowColor = baseColor;
@@ -571,7 +566,7 @@ async function generateProfileCard(user, hunter) {
   const canvas = new Canvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  // ── BACKGROUND ────────────────────────────────────────────
+  // -- BACKGROUND --------------------------------------------
   try {
     const bg = await loadImage(MAIN_BACKGROUND_PATH);
     ctx.drawImage(bg, 0, 0, W, H);
@@ -601,7 +596,7 @@ async function generateProfileCard(user, hunter) {
   let hClass = "WARRIOR";
   try { hClass = String(require("./classService").getHunterClass(hunter)).toUpperCase(); } catch(e){}
 
-  // ── LEFT PANEL ────────────────────────────────────────────
+  // -- LEFT PANEL --------------------------------------------
   const panelX = 30, panelY = 30, panelW = 390, panelH = 740;
 
   // Panel background + glow
@@ -645,7 +640,7 @@ async function generateProfileCard(user, hunter) {
   ctx.fill();
   ctx.restore();
 
-  // ── AVATAR ────────────────────────────────────────────────
+  // -- AVATAR ------------------------------------------------
   const cx = panelX + panelW / 2, avatarY = 190;
   const avatarR = 100;
 
@@ -785,7 +780,7 @@ async function generateProfileCard(user, hunter) {
     resY += 52;
   }
 
-  // ── RIGHT PANEL ───────────────────────────────────────────
+  // -- RIGHT PANEL -------------------------------------------
   const rPanelX = 444, rPanelY = 30, rPanelW = W - rPanelX - 30, rPanelH = 740;
 
   ctx.save();
@@ -803,7 +798,7 @@ async function generateProfileCard(user, hunter) {
   ctx.font = "900 13px Rajdhani, Inter";
   ctx.fillStyle = "#6366F1";
   ctx.letterSpacing = "4px";
-  ctx.fillText("◈ SYSTEM STATUS ◈", rPanelX + 30, rPanelY + 46);
+  ctx.fillText("? SYSTEM STATUS ?", rPanelX + 30, rPanelY + 46);
   ctx.restore();
 
   ctx.save();
@@ -822,18 +817,18 @@ async function generateProfileCard(user, hunter) {
   ctx.fillStyle = divGrad;
   ctx.fillRect(rPanelX + 30, rPanelY + 110, rPanelW - 60, 2);
 
-  // ── COMBAT STATS ─────────────────────────────────────────
+  // -- COMBAT STATS -----------------------------------------
   ctx.save();
   ctx.font = "900 13px Rajdhani, Inter";
   ctx.fillStyle = "#4B5563";
-  ctx.fillText("▸ COMBAT ATTRIBUTES", rPanelX + 30, rPanelY + 146);
+  ctx.fillText("? COMBAT ATTRIBUTES", rPanelX + 30, rPanelY + 146);
   ctx.restore();
 
   const stats = [
-    { key: "STR", val: hunter.strength, color: "#EF4444", icon: "⚔" },
-    { key: "AGI", val: hunter.agility, color: "#10B981", icon: "💨" },
-    { key: "INT", val: hunter.intelligence, color: "#3B82F6", icon: "✦" },
-    { key: "VIT", val: hunter.vitality, color: "#F59E0B", icon: "❤" },
+    { key: "STR", val: hunter.strength, color: "#EF4444", icon: "?" },
+    { key: "AGI", val: hunter.agility, color: "#10B981", icon: "??" },
+    { key: "INT", val: hunter.intelligence, color: "#3B82F6", icon: "?" },
+    { key: "VIT", val: hunter.vitality, color: "#F59E0B", icon: "?" },
   ];
 
   const statCols = 2;
@@ -904,7 +899,7 @@ async function generateProfileCard(user, hunter) {
     ctx.restore();
   }
 
-  // ── COMBAT POWER ──────────────────────────────────────────
+  // -- COMBAT POWER ------------------------------------------
   const cpY = rPanelY + 165 + 2 * (statH + 12) + 24;
   const totalPower = (Number(hunter.strength)||0)*2 + (Number(hunter.agility)||0)
     + Math.floor((Number(hunter.intelligence)||0)/2) + (Number(hunter.vitality)||0);
@@ -927,7 +922,7 @@ async function generateProfileCard(user, hunter) {
   ctx.textAlign = "left";
   ctx.font = "700 16px Rajdhani, Inter";
   ctx.fillStyle = "#8B5CF6";
-  ctx.fillText("◈  TOTAL COMBAT POWER", rPanelX + 54, cpY + 30);
+  ctx.fillText("?  TOTAL COMBAT POWER", rPanelX + 54, cpY + 30);
   ctx.textAlign = "right";
   ctx.font = "900 46px Orbitron, Inter";
   ctx.fillStyle = "#FFFFFF";
@@ -937,12 +932,12 @@ async function generateProfileCard(user, hunter) {
   ctx.shadowBlur = 0;
   ctx.restore();
 
-  // ── WATERMARK ─────────────────────────────────────────────
+  // -- WATERMARK ---------------------------------------------
   ctx.save();
   ctx.textAlign = "right";
   ctx.font = "700 15px Rajdhani, Inter";
   ctx.fillStyle = "rgba(255,255,255,0.12)";
-  ctx.fillText("SYSTEM  ·  LUCENT BOT", W - 44, H - 24);
+  ctx.fillText("SYSTEM  �  LUCENT BOT", W - 44, H - 24);
   ctx.restore();
 
   return await canvas.toBuffer("png");
@@ -1447,7 +1442,7 @@ async function generateCardsCollectionCard(username, cards) {
     ctx.fill();
     ctx.fillStyle = "#E2E8F0";
     ctx.font = "900 32px Inter";
-    ctx.fillText("No cards collected yet. The unique card drops at 0.0025%.", 78, 244);
+    ctx.fillText("No cards collected yet. The unique card drops at 1%.", 78, 244);
     return toBuffer(canvas);
   }
 
@@ -1863,7 +1858,7 @@ async function generateStatsCard(user, hunter, metrics = {}) {
     // right color accent
     roundedRect(ctx,rx+resW-4,ry,4,resH,4); ctx.fillStyle=res.color+"33"; ctx.fill();
 
-    const emoji=res.key?await loadDiscordEmojiById(STAT_EMOJI_IDS[res.key]):null;
+    const emoji=res.key?await loadDiscordEmojiById(getStatEmojiIdsMap()[res.key]):null;
     let lx=rx+12;
     if(emoji){ctx.drawImage(emoji,lx,ry+12,18,18);lx+=24;}
     ctx.fillStyle="#4B5563"; ctx.font=lblFont(12); ctx.fillText(res.label,lx,ry+27);
@@ -1880,7 +1875,7 @@ async function generateStatsCard(user, hunter, metrics = {}) {
   // SECTION HEADER HELPER
   function sysHeader(x,y,label,color) {
     ctx.font=lblFont(13); ctx.fillStyle="#1E3A5F";
-    ctx.fillText("═".repeat(70),x,y+16);
+    ctx.fillText("╝".repeat(70),x,y+16);
     ctx.fillStyle=color; ctx.fillText("[ SYSTEM ]  "+label,x,y+16);
   }
 
@@ -1946,7 +1941,7 @@ async function generateStatsCard(user, hunter, metrics = {}) {
     ctx.restore();
 
     // emoji + abbr
-    const emoji=await loadDiscordEmojiById(STAT_EMOJI_IDS[s.key]);
+    const emoji=await loadDiscordEmojiById(getStatEmojiIdsMap()[s.key]);
     const lby=gaugeY+gaugeH-64;
     if(emoji){ctx.drawImage(emoji,gcx-30,lby,24,24);ctx.font=lblFont(15);ctx.fillStyle=s.color;ctx.fillText(s.abbr,gcx+10,lby+18);}
     else{ctx.font=lblFont(16);ctx.fillStyle=s.color;ctx.fillText(s.abbr,gcx,lby+18);}
@@ -2206,306 +2201,190 @@ async function generateHuntResultCard(user, result, levelsGained) {
 }
 
 async function generateBattleResultCard(attacker, defender, result) {
-  const W = 1440, H = 820;
+  const attackerName = formatDisplayName(attacker.username);
+  const defenderName = formatDisplayName(defender.username);
+  const W = 1440;
+  const H = 820;
   const canvas = new Canvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  const ATT_COL = "#3B82F6";   // blue
-  const DEF_COL = "#EF4444";   // red
-  const WIN_COL = "#F59E0B";   // gold
+  const FONT_NUM = "Orbitron";
+  const FONT_LBL = "Rajdhani";
+  const FONT_FB = "Inter";
+  function numFont(sz) { return "900 " + sz + "px " + FONT_NUM + ", " + FONT_FB; }
+  function lblFont(sz) { return "700 " + sz + "px " + FONT_LBL + ", " + FONT_FB; }
 
-  // ── BACKGROUND ────────────────────────────────────────────
-  try {
-    const bg = await loadImage(MAIN_BACKGROUND_PATH);
-    ctx.drawImage(bg, 0, 0, W, H);
-  } catch(e) {}
-  // Deep dark overlay
-  ctx.fillStyle = "rgba(2,6,18,0.88)";
-  ctx.fillRect(0, 0, W, H);
+  // ── BACKGROUND 
+  await drawMainBackground(ctx, W, H);
+  const clrAtt = "#3B82F6";  // Blue for attacker
+  const clrDef = "#EF4444";  // Red for defender
 
-  // Diagonal color split — attacker blue left, defender red right
+  // Split diagonal background: Blue left/top, Red right/bottom
   ctx.save();
-  const splitGrad = ctx.createLinearGradient(0, 0, W, H);
-  splitGrad.addColorStop(0, "rgba(59,130,246,0.12)");
-  splitGrad.addColorStop(0.48, "rgba(0,0,0,0)");
-  splitGrad.addColorStop(0.52, "rgba(0,0,0,0)");
-  splitGrad.addColorStop(1, "rgba(239,68,68,0.12)");
-  ctx.fillStyle = splitGrad;
-  ctx.fillRect(0, 0, W, H);
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(0, H); ctx.closePath();
+  const grdAtt = ctx.createLinearGradient(0, 0, W/2, H/2);
+  grdAtt.addColorStop(0, "rgba(10, 20, 50, 0.95)"); grdAtt.addColorStop(1, "rgba(5, 10, 25, 0.95)");
+  ctx.fillStyle = grdAtt; ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(W, 0); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  const grdDef = ctx.createLinearGradient(W, H, W/2, H/2);
+  grdDef.addColorStop(0, "rgba(50, 10, 15, 0.95)"); grdDef.addColorStop(1, "rgba(25, 5, 8, 0.95)");
+  ctx.fillStyle = grdDef; ctx.fill();
   ctx.restore();
 
-  // ── CENTER DIVIDER + VS ────────────────────────────────────
-  // Vertical line
-  const midX = W / 2;
-  const lineGrad = ctx.createLinearGradient(0, 0, 0, H);
-  lineGrad.addColorStop(0, "rgba(255,255,255,0)");
-  lineGrad.addColorStop(0.35, "rgba(255,255,255,0.18)");
-  lineGrad.addColorStop(0.5, "rgba(245,158,11,0.5)");
-  lineGrad.addColorStop(0.65, "rgba(255,255,255,0.18)");
-  lineGrad.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = lineGrad;
-  ctx.fillRect(midX - 1, 0, 2, H);
+  // Dark wash over center
+  const centerWash = ctx.createRadialGradient(W/2, H/2, 50, W/2, H/2, W/2);
+  centerWash.addColorStop(0, "rgba(0,0,0,0.4)");
+  centerWash.addColorStop(1, "rgba(0,0,0,0.9)");
+  ctx.fillStyle = centerWash; ctx.fillRect(0, 0, W, H);
 
-  // VS circle
-  const vsR = 64;
-  const vsY = H / 2 - 40;
+  // ── Lightning in the middle line
   ctx.save();
-  ctx.shadowColor = WIN_COL;
-  ctx.shadowBlur = 50;
-  ctx.beginPath();
-  ctx.arc(midX, vsY, vsR + 4, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(245,158,11,0.15)";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(midX, vsY, vsR, 0, Math.PI * 2);
-  ctx.fillStyle = "#0A0F1E";
-  ctx.fill();
-  ctx.strokeStyle = WIN_COL;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
   ctx.lineWidth = 3;
+  ctx.shadowColor = "#FFFFFF"; ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(W - 100, 0);
+  // draw jagged line down to (100, H)
+  let cx = W - 100, cy = 0;
+  while(cy < H) {
+    cy += randomInt(30, 80);
+    cx -= randomInt(30, 80) * (W/H);
+    ctx.lineTo(cx + randomInt(-40, 40), cy);
+  }
   ctx.stroke();
+  ctx.strokeStyle = "rgba(167, 139, 250, 0.4)";
+  ctx.lineWidth = 8; ctx.stroke();
   ctx.restore();
 
+  // ── CENTER "VS" Badge
+  const vsR = 80;
   ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "900 44px Orbitron, Inter";
-  ctx.fillStyle = WIN_COL;
-  ctx.shadowColor = WIN_COL;
-  ctx.shadowBlur = 30;
-  ctx.fillText("VS", midX, vsY + 16);
-  ctx.shadowBlur = 0;
+  ctx.shadowColor = "#F59E0B"; ctx.shadowBlur = 30;
+  ctx.beginPath(); ctx.arc(W/2, H/2 - 60, vsR, 0, Math.PI*2);
+  ctx.fillStyle = "#1E293B"; ctx.fill();
+  ctx.lineWidth = 6; ctx.strokeStyle = "#F59E0B"; ctx.stroke();
+  ctx.fillStyle = "#F59E0B";
+  ctx.font = numFont(64); ctx.textAlign = "center";
+  ctx.fillText("VS", W/2, H/2 - 40);
   ctx.restore();
+  ctx.textAlign = "left";
 
-  // Rounds badge
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "700 17px Rajdhani, Inter";
-  ctx.fillStyle = "#64748B";
-  ctx.fillText("ROUNDS : " + (result.rounds || 0), midX, vsY + vsR + 24);
-  ctx.restore();
-
-  // ── FIGHTER CARD ──────────────────────────────────────────
-  async function drawFighter(isAttacker) {
-    const col = isAttacker ? ATT_COL : DEF_COL;
-    const won = isAttacker ? result.attackerWon : !result.attackerWon;
-    const name = formatDisplayName(isAttacker ? attacker.username : defender.username);
+  // ── PLAYER CARDS function
+  function drawFighter(isAttacker, x, y) {
+    const isWin = isAttacker ? result.attackerWon : !result.attackerWon;
+    const clr = isAttacker ? clrAtt : clrDef;
+    const name = isAttacker ? attackerName : defenderName;
     const power = isAttacker ? result.attScore : result.defScore;
     const hp = isAttacker ? result.attackerHp : result.defenderHp;
     const maxHp = isAttacker ? result.attackerMaxHp : result.defenderMaxHp;
     const rew = isAttacker ? result.rewards?.attacker : result.rewards?.defender;
-    const user = isAttacker ? attacker : defender;
 
-    const cw = 520, ch = 440;
-    const cx2 = isAttacker ? (midX - cw - 40) : (midX + 40);
-    const cy2 = 60;
+    const fw = 440;
+    const fh = 260;
 
-    // Card shadow + body
-    ctx.save();
-    if (won) { ctx.shadowColor = col; ctx.shadowBlur = 60; }
-    roundedRect(ctx, cx2, cy2, cw, ch, 22);
-    ctx.fillStyle = "rgba(4,10,28,0.92)";
-    ctx.fill();
-    ctx.restore();
-
-    roundedRect(ctx, cx2, cy2, cw, ch, 22);
-    const cardBorder = ctx.createLinearGradient(cx2, cy2, cx2 + cw, cy2 + ch);
-    cardBorder.addColorStop(0, won ? col : col + "55");
-    cardBorder.addColorStop(1, col + "22");
-    ctx.strokeStyle = cardBorder;
-    ctx.lineWidth = won ? 3 : 1.5;
-    ctx.stroke();
-
-    // Top accent
-    roundedRect(ctx, cx2, cy2, cw, 60, 22);
-    const topAcc = ctx.createLinearGradient(cx2, cy2, cx2 + cw, cy2);
-    topAcc.addColorStop(0, col + "88");
-    topAcc.addColorStop(1, col + "11");
-    ctx.fillStyle = topAcc;
-    ctx.fill();
-
-    // ATTACKER / DEFENDER label
-    ctx.save();
-    ctx.textAlign = "left";
-    ctx.font = "700 14px Rajdhani, Inter";
-    ctx.fillStyle = col;
-    ctx.fillText(isAttacker ? "⚔  ATTACKER" : "🛡  DEFENDER", cx2 + 22, cy2 + 38);
-    ctx.restore();
-
-    // WIN/DEFEAT watermark
-    ctx.save();
-    ctx.translate(cx2 + cw / 2, cy2 + ch / 2 - 30);
-    ctx.rotate((isAttacker ? -18 : 18) * Math.PI / 180);
-    ctx.textAlign = "center";
-    ctx.font = "900 95px Orbitron, Inter";
-    ctx.fillStyle = won ? col + "1A" : "rgba(255,255,255,0.04)";
-    ctx.fillText(won ? "VICTORY" : "DEFEAT", 0, 0);
-    ctx.restore();
-
-    // Avatar
-    const avR = 72;
-    const avX = cx2 + cw / 2;
-    const avY = cy2 + 160;
-    ctx.save();
-    ctx.shadowColor = won ? col : "rgba(0,0,0,0.5)";
-    ctx.shadowBlur = won ? 35 : 10;
-    ctx.beginPath();
-    ctx.arc(avX, avY, avR + 5, 0, Math.PI * 2);
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(avX, avY, avR, 0, Math.PI * 2);
-    ctx.clip();
-    let avUrl = "https://cdn.discordapp.com/embed/avatars/0.png";
-    if (user && typeof user.displayAvatarURL === "function")
-      avUrl = user.displayAvatarURL({ extension: "png", size: 256, forceStatic: true });
-    try { const av = await loadImage(avUrl); ctx.drawImage(av, avX - avR, avY - avR, avR*2, avR*2); } catch(e) {}
-    ctx.restore();
-
-    // Name
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.font = "900 28px Orbitron, Inter";
-    ctx.fillStyle = "#FFFFFF";
-    ctx.shadowColor = col;
-    ctx.shadowBlur = 14;
-    ctx.fillText(ellipsizeText(ctx, name, cw - 40), avX, cy2 + 262);
-    ctx.shadowBlur = 0;
-    ctx.restore();
-
-    // Power
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.font = "700 17px Rajdhani, Inter";
-    ctx.fillStyle = "#64748B";
-    ctx.fillText("COMBAT POWER", avX, cy2 + 294);
-    ctx.font = "900 32px Orbitron, Inter";
-    ctx.fillStyle = col;
-    ctx.shadowColor = col;
-    ctx.shadowBlur = 16;
-    ctx.fillText(power.toLocaleString(), avX, cy2 + 328);
-    ctx.shadowBlur = 0;
-    ctx.restore();
-
-    // HP bar
-    const bX = cx2 + 30, bY = cy2 + 348, bW = cw - 60, bH = 16;
-    const hpPct = Math.max(0, Math.min(1, hp / Math.max(1, maxHp)));
-    roundedRect(ctx, bX, bY, bW, bH, 8);
-    ctx.fillStyle = "rgba(30,41,59,0.8)";
-    ctx.fill();
-    if (hpPct > 0) {
-      roundedRect(ctx, bX, bY, bW * hpPct, bH, 8);
-      const hpGrad = ctx.createLinearGradient(bX, 0, bX + bW*hpPct, 0);
-      hpGrad.addColorStop(0, won ? "#10B981" : "#EF4444");
-      hpGrad.addColorStop(1, won ? "#06D6A0" : "#DC2626");
-      ctx.fillStyle = hpGrad;
-      ctx.shadowColor = won ? "#10B981" : "#EF4444";
-      ctx.shadowBlur = 8;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      // Gloss
-      roundedRect(ctx, bX, bY, bW * hpPct, bH * 0.48, 8);
-      ctx.fillStyle = "rgba(255,255,255,0.22)";
-      ctx.fill();
-    }
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.font = "700 15px Rajdhani, Inter";
-    ctx.fillStyle = "#94A3B8";
-    ctx.fillText("HP  " + hp + "  /  " + maxHp, bX + bW/2, bY + bH + 22);
-    ctx.restore();
-
-    // Reward box
-    if (rew) {
-      const rwY = cy2 + 396;
-      roundedRect(ctx, cx2 + 30, rwY, cw - 60, 38, 12);
-      ctx.fillStyle = "rgba(15,23,42,0.7)";
-      ctx.fill();
-      roundedRect(ctx, cx2 + 30, rwY, cw - 60, 38, 12);
-      ctx.strokeStyle = (won ? "#FBBF24" : "#475569") + "55";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+    // Outer glow if win
+    if (isWin) {
       ctx.save();
-      ctx.textAlign = "center";
-      ctx.font = "700 17px Rajdhani, Inter";
-      ctx.fillStyle = won ? "#FBBF24" : "#64748B";
-      ctx.fillText("+" + (rew.xp || 0) + " XP   ·   +" + (rew.gold || 0) + " GOLD", cx2 + cw/2, rwY + 25);
+      ctx.shadowColor = clr; ctx.shadowBlur = 40;
+      roundedRect(ctx, x, y, fw, fh, 16); ctx.fillStyle = clr; ctx.fill();
       ctx.restore();
     }
-  }
 
-  await drawFighter(true);
-  await drawFighter(false);
+    roundedRect(ctx, x, y, fw, fh, 16);
+    ctx.fillStyle = "rgba(10, 15, 30, 0.85)"; ctx.fill();
+    ctx.lineWidth = isWin ? 5 : 2; ctx.strokeStyle = isWin ? clr : "#334155"; ctx.stroke();
 
-  // ── COMBAT LOG ────────────────────────────────────────────
-  const logW = 760, logH = 230;
-  const logX = midX - logW / 2;
-  const logY = H - logH - 40;
+    // Inner top accent
+    roundedRect(ctx, x, y, fw, 60, 16);
+    ctx.fillStyle = clr + "33"; ctx.fill();
+    ctx.fillStyle = clr; ctx.font = numFont(24);
+    ctx.textAlign = "center";
+    ctx.fillText(isAttacker ? "ATTACKER" : "DEFENDER", x + fw/2, y + 40);
 
-  ctx.save();
-  ctx.shadowColor = "rgba(99,102,241,0.4)";
-  ctx.shadowBlur = 30;
-  roundedRect(ctx, logX, logY, logW, logH, 20);
-  ctx.fillStyle = "rgba(4,10,28,0.92)";
-  ctx.fill();
-  ctx.restore();
-
-  roundedRect(ctx, logX, logY, logW, logH, 20);
-  const logBorder = ctx.createLinearGradient(logX, logY, logX + logW, logY + logH);
-  logBorder.addColorStop(0, "rgba(99,102,241,0.5)");
-  logBorder.addColorStop(1, "rgba(99,102,241,0.1)");
-  ctx.strokeStyle = logBorder;
-  ctx.lineWidth = 1.8;
-  ctx.stroke();
-
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "900 16px Orbitron, Inter";
-  ctx.fillStyle = "#6366F1";
-  ctx.fillText("◈  COMBAT LOG  ◈", midX, logY + 36);
-  ctx.restore();
-
-  const logs = Array.isArray(result.combatLog) && result.combatLog.length
-    ? result.combatLog : ["No combat log available."];
-  let logLineY = logY + 65;
-  for (let i = 0; i < Math.min(5, logs.length); i++) {
-    const line = logs[i];
-    let c = "#64748B";
-    if (line.includes("A->D") || line.includes("A=>D")) c = ATT_COL;
-    if (line.includes("D->A") || line.includes("D=>A")) c = DEF_COL;
-    if (line.includes("[CRIT]") || line.includes("[SKILL]")) c = WIN_COL;
+    // WIN/LOSE Stamp
     ctx.save();
-    ctx.textAlign = "left";
-    ctx.font = "700 18px Rajdhani, Inter";
-    ctx.fillStyle = c;
-    // Rail dot
-    ctx.beginPath();
-    ctx.arc(logX + 22, logLineY - 5, 4, 0, Math.PI * 2);
-    ctx.fillStyle = c;
-    ctx.fill();
-    ctx.fillStyle = c;
-    ctx.fillText(ellipsizeText(ctx, line, logW - 60), logX + 36, logLineY);
+    ctx.translate(x + fw/2, y + fh/2);
+    ctx.rotate((isAttacker ? -15 : 15) * Math.PI / 180);
+    ctx.textAlign = "center";
+    ctx.font = numFont(60);
+    ctx.fillStyle = isWin ? clr+"22" : "rgba(255,255,255,0.05)";
+    ctx.fillText(isWin ? "VICTORY" : "DEFEAT", 0, 0);
     ctx.restore();
-    logLineY += 30;
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#F8FAFC";
+    const nSz = fitFontSize(ctx, name, 45, 24, fw - 40);
+    ctx.font = `900 ${nSz}px ${FONT_NUM}`;
+    ctx.fillText(ellipsizeText(ctx, name, fw - 40), x + fw/2, y + 105);
+
+    ctx.fillStyle = "#94A3B8"; ctx.font = lblFont(20);
+    ctx.fillText("COMBAT POWER", x + fw/2, y + 145);
+    ctx.fillStyle = clr; ctx.font = numFont(32);
+    ctx.fillText(power.toLocaleString(), x + fw/2, y + 175);
+
+    // HP Bar
+    const barW = fw - 60;
+    const barX = x + 30;
+    const barY = y + 195;
+    roundedRect(ctx, barX, barY, barW, 14, 7);
+    ctx.fillStyle = "#1E293B"; ctx.fill();
+    const hpPct = Math.max(0, Math.min(1, hp / maxHp));
+    if (hpPct > 0) {
+      roundedRect(ctx, barX, barY, barW * hpPct, 14, 7);
+      ctx.fillStyle = isWin ? "#10B981" : "#EF4444"; ctx.fill();
+    }
+    ctx.fillStyle = "#E2E8F0"; ctx.font = lblFont(14);
+    ctx.fillText(`HP: ${hp} / ${maxHp}`, x + fw/2, barY + 30);
+    ctx.textAlign = "left";
   }
 
-  // Win probability
-  ctx.save();
-  ctx.textAlign = "right";
-  ctx.font = "700 16px Rajdhani, Inter";
-  ctx.fillStyle = "#475569";
-  ctx.fillText("Win Probability: " + (result.winChance || 0).toFixed(1) + "%", logX + logW - 20, logY + logH - 18);
-  ctx.restore();
+  // Draw fighters
+  drawFighter(true, 80, 180);
+  drawFighter(false, W - 440 - 80, 180);
 
-  // ── WATERMARK ─────────────────────────────────────────────
-  ctx.save();
+  // ── COMBAT LOG (Bottom Center)
+  const lw = 900;
+  const lh = 220;
+  const lx = W/2 - lw/2;
+  const ly = H - lh - 40;
+
+  roundedRect(ctx, lx, ly, lw, lh, 16);
+  ctx.fillStyle = "rgba(10, 12, 25, 0.85)"; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = "#475569"; ctx.stroke();
+
+  ctx.fillStyle = "#94A3B8"; ctx.font = numFont(24);
+  ctx.textAlign = "center";
+  ctx.fillText("COMBAT LOG", W/2, ly + 40);
+
+  const logs = Array.isArray(result.combatLog) && result.combatLog.length ? result.combatLog : ["No combat log available."];
+  ctx.textAlign = "left";
+  ctx.font = lblFont(18);
+  
+  // Draw logs
+  const startY = ly + 75;
+  const lineHeight = 28;
+  for (let i = 0; i < Math.min(5, logs.length); i++) {
+    let text = logs[i];
+    
+    // Highlight A->D or D->A
+    ctx.fillStyle = "#64748B"; // default gray
+    if (text.includes("A->D")) ctx.fillStyle = clrAtt;
+    if (text.includes("D->A")) ctx.fillStyle = clrDef;
+    if (text.includes("[CRIT]")) ctx.fillStyle = "#F59E0B";
+
+    ctx.fillText(ellipsizeText(ctx, text, lw - 60), lx + 30, startY + i * lineHeight);
+  }
+
+  // Draw overall battle result on bottom log right
   ctx.textAlign = "right";
-  ctx.font = "700 15px Rajdhani, Inter";
-  ctx.fillStyle = "rgba(255,255,255,0.10)";
-  ctx.fillText("SYSTEM  ·  LUCENT BOT", W - 40, H - 20);
-  ctx.restore();
+  ctx.fillStyle = "#E2E8F0"; ctx.font = lblFont(20);
+  ctx.fillText(`Length: ${result.rounds || 0} Rounds`, lx + lw - 30, ly + 80);
+  ctx.fillStyle = "#A78BFA";
+  ctx.fillText(`Win Probability: ${result.winChance.toFixed(1)}%`, lx + lw - 30, ly + 110);
+  ctx.textAlign = "left";
 
   return toBuffer(canvas);
 }
@@ -2525,7 +2404,7 @@ async function generateRankupCard(user, newRank, previousRank) {
   
   ctx.fillStyle = "#F8FAFC";
   ctx.font = "900 64px Inter";
-  ctx.fillText("🎖️ Rank Up!", 48, 100);
+  ctx.fillText("🎖︝ Rank Up!", 48, 100);
 
   
   const boxW = 400;
@@ -2585,354 +2464,150 @@ async function generateRankupCard(user, newRank, previousRank) {
 }
 
 async function generateSalaryCard(user, goldGained, totalGold) {
-  const W = 900, H = 400;
+  const W = 1200;
+  const H = 600;
   const canvas = new Canvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  // BG
-  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-  bgGrad.addColorStop(0, "#080500");
-  bgGrad.addColorStop(0.5, "#110900");
-  bgGrad.addColorStop(1, "#040200");
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, W, H);
+  // Deep Premium Gradient
+  ctx.fillStyle = "#050505"; ctx.fillRect(0,0,W,H);
+  const grad = ctx.createLinearGradient(0,0,W,H);
+  grad.addColorStop(0, "#1c1405");
+  grad.addColorStop(0.5, "#0a0a0a");
+  grad.addColorStop(1, "#1c1405");
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
 
-  // Gold ambient glow
-  ctx.save();
-  const glow = ctx.createRadialGradient(W/2, H*0.4, 0, W/2, H*0.4, 420);
-  glow.addColorStop(0, "rgba(251,191,36,0.22)");
-  glow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, H);
-  ctx.restore();
+  drawDigitalGrid(ctx, W, H, "#FBBF24");
+  drawHUDBrackets(ctx, 30, 30, W-60, H-60, "#FBBF24", 50);
 
-  // Scanlines
-  for (let y = 0; y < H; y += 4) {
-    ctx.fillStyle = "rgba(0,0,0,0.08)";
-    ctx.fillRect(0, y, W, 1);
-  }
-
-  // Main card
-  ctx.save();
-  ctx.shadowColor = "#F59E0B";
-  ctx.shadowBlur = 55;
-  roundedRect(ctx, 30, 30, W - 60, H - 60, 24);
-  ctx.fillStyle = "rgba(6,4,0,0.88)";
-  ctx.fill();
-  ctx.restore();
-
-  roundedRect(ctx, 30, 30, W - 60, H - 60, 24);
-  const border = ctx.createLinearGradient(30, 30, W - 30, H - 30);
-  border.addColorStop(0, "#F59E0B");
-  border.addColorStop(0.5, "#FBBF24");
-  border.addColorStop(1, "#D97706");
-  ctx.strokeStyle = border;
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-
-  // Top strip
-  roundedRect(ctx, 30, 30, W - 60, 70, 24);
-  const topStrip = ctx.createLinearGradient(30, 30, W - 30, 30);
-  topStrip.addColorStop(0, "rgba(251,191,36,0.30)");
-  topStrip.addColorStop(1, "rgba(251,191,36,0.05)");
-  ctx.fillStyle = topStrip;
-  ctx.fill();
-
-  // Gloss
-  roundedRect(ctx, 34, 34, W - 68, 30, 20);
-  const gloss = ctx.createLinearGradient(0, 34, 0, 64);
-  gloss.addColorStop(0, "rgba(255,255,255,0.14)");
-  gloss.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = gloss;
-  ctx.fill();
-
-  // Label
-  ctx.save();
+  // Gilded Header
   ctx.textAlign = "center";
-  ctx.font = "900 14px Rajdhani, Inter";
-  ctx.fillStyle = "#D97706";
-  ctx.fillText("◈  GUILD COMPENSATION OFFICE  ◈", W/2, 80);
-  ctx.restore();
-
-  // Title
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "900 44px Orbitron, Inter";
   ctx.fillStyle = "#FBBF24";
-  ctx.shadowColor = "#F59E0B";
-  ctx.shadowBlur = 28;
-  ctx.fillText("DAILY GUILD SALARY", W/2, 140);
+  ctx.font = "700 20px Rajdhani";
+  ctx.fillText("— MONARCH'S TREASURY DISPERSEMENT —", W/2, 80);
+  
+  ctx.font = "900 60px Orbitron";
+  ctx.shadowColor = "#FBBF24"; ctx.shadowBlur = 25;
+  ctx.fillText("GUILD SALARY", W/2, 160);
   ctx.shadowBlur = 0;
-  ctx.restore();
 
-  // Username
-  const displayName = formatDisplayName(user && (user.username || user.displayName) || "Hunter");
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "700 22px Rajdhani, Inter";
-  ctx.fillStyle = "#94A3B8";
-  ctx.fillText("HUNTER: " + displayName.toUpperCase(), W/2, 175);
-  ctx.restore();
-
-  // Divider
-  const divG = ctx.createLinearGradient(120, 0, W - 120, 0);
-  divG.addColorStop(0, "rgba(245,158,11,0)");
-  divG.addColorStop(0.5, "#F59E0B");
-  divG.addColorStop(1, "rgba(245,158,11,0)");
-  ctx.fillStyle = divG;
-  ctx.fillRect(120, 192, W - 240, 2);
-
-  // Amount box
-  const amtW = 420, amtH = 100;
-  const amtX = W/2 - amtW/2, amtY = 210;
-  ctx.save();
-  ctx.shadowColor = "#10B981";
-  ctx.shadowBlur = 35;
-  roundedRect(ctx, amtX, amtY, amtW, amtH, 20);
-  ctx.fillStyle = "rgba(4,14,10,0.85)";
-  ctx.fill();
-  ctx.restore();
-  roundedRect(ctx, amtX, amtY, amtW, amtH, 20);
-  ctx.strokeStyle = "rgba(16,185,129,0.6)";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "700 17px Rajdhani, Inter";
-  ctx.fillStyle = "#10B981";
-  ctx.fillText("DEPOSITED", W/2, amtY + 28);
-  ctx.font = "900 52px Orbitron, Inter";
+  // Transaction Display
+  drawNeoUIBacking(ctx, 100, 200, 1000, 320, "#FBBF24");
+  
+  // Center Piece
+  ctx.fillStyle = "rgba(251, 191, 36, 0.05)";
+  ctx.beginPath(); ctx.arc(W/2, 360, 120, 0, Math.PI*2); ctx.fill();
+  
   ctx.fillStyle = "#FFFFFF";
-  ctx.shadowColor = "#10B981";
-  ctx.shadowBlur = 22;
-  ctx.fillText("+" + Number(goldGained).toLocaleString() + " G", W/2, amtY + 78);
+  ctx.font = "900 100px Orbitron";
+  ctx.shadowColor = "#10B981"; ctx.shadowBlur = 20;
+  ctx.fillText("+" + goldGained.toLocaleString(), W/2, 400);
   ctx.shadowBlur = 0;
-  ctx.restore();
+  
+  ctx.font = "700 28px Rajdhani"; ctx.fillStyle = "#10B981";
+  ctx.fillText("GOLD CREDITS ADDED", W/2, 440);
 
-  // Total
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "700 20px Rajdhani, Inter";
-  ctx.fillStyle = "#64748B";
-  ctx.fillText("TOTAL BALANCE :  " + Number(totalGold).toLocaleString() + " GOLD", W/2, 334);
-  ctx.restore();
+  // Side Details
+  ctx.textAlign = "left";
+  ctx.font = "700 18px Rajdhani"; ctx.fillStyle = "#94A3B8";
+  ctx.fillText("RECIPIENT", 140, 260);
+  ctx.fillStyle = "#FFF"; ctx.font = "900 24px Orbitron";
+  ctx.fillText((user.username||"HUNTER").toUpperCase(), 140, 290);
 
-  // Footer line
-  const footG = ctx.createLinearGradient(120, 0, W - 120, 0);
-  footG.addColorStop(0, "rgba(245,158,11,0)");
-  footG.addColorStop(0.5, "rgba(245,158,11,0.3)");
-  footG.addColorStop(1, "rgba(245,158,11,0)");
-  ctx.fillStyle = footG;
-  ctx.fillRect(120, 348, W - 240, 1);
-
-  ctx.save();
   ctx.textAlign = "right";
-  ctx.font = "700 14px Rajdhani, Inter";
-  ctx.fillStyle = "rgba(255,255,255,0.12)";
-  ctx.fillText("SYSTEM  ·  LUCENT BOT", W - 44, H - 22);
-  ctx.restore();
+  ctx.fillStyle = "#94A3B8"; ctx.font = "700 18px Rajdhani";
+  ctx.fillText("TOTAL BALANCE", W-140, 260);
+  ctx.fillStyle = "#FBBF24"; ctx.font = "900 24px Orbitron";
+  ctx.fillText(totalGold.toLocaleString() + " G", W-140, 290);
+
+  // Authenticity Stamp
+  ctx.strokeStyle = "rgba(251, 191, 36, 0.2)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(100, 480); ctx.lineTo(1100, 480); ctx.stroke();
 
   return await canvas.toBuffer("png");
 }
 
-async function generateGateCard(user, difficultyText, results, isSuccess) {
-  const W = 1000, H = 500;
+async function generateGateCard(user, difficultyText, results, isSuccess, successChancePercent = null) {
+  const W = 1300;
+  const H = 750;
   const canvas = new Canvas(W, H);
   const ctx = canvas.getContext("2d");
 
-  const C = isSuccess ? "#10B981" : "#EF4444";
-  const CS = isSuccess ? "#06D6A0" : "#DC2626";
-  const CD = isSuccess ? "#064E3B" : "#450A0A";
+  const color = isSuccess ? "#10B981" : "#EF4444";
+  
+  // Atmospheric Background
+  ctx.fillStyle = "#020202"; ctx.fillRect(0,0,W,H);
+  const grad = ctx.createRadialGradient(W/2, H/2, 50, W/2, H/2, W);
+  grad.addColorStop(0, color + "33");
+  grad.addColorStop(1, "rgba(0,0,0,0.95)");
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
 
-  // BG
-  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-  bgGrad.addColorStop(0, CD.replace("#","#1A") || "#060808");
-  bgGrad.addColorStop(1, "#030405");
-  ctx.fillStyle = isSuccess ? "#020c07" : "#080202";
-  ctx.fillRect(0, 0, W, H);
+  drawDigitalGrid(ctx, W, H, color);
+  drawHUDBrackets(ctx, 40, 40, W-80, H-80, color, 80);
 
-  // Ambient glow
-  ctx.save();
-  const aGlow = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, 500);
-  aGlow.addColorStop(0, isSuccess ? "rgba(16,185,129,0.20)" : "rgba(239,68,68,0.20)");
-  aGlow.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = aGlow;
-  ctx.fillRect(0, 0, W, H);
-  ctx.restore();
-
-  // Scanlines
-  for (let y = 0; y < H; y += 4) {
-    ctx.fillStyle = "rgba(0,0,0,0.07)";
-    ctx.fillRect(0, y, W, 1);
-  }
-
-  // Main card
-  ctx.save();
-  ctx.shadowColor = C;
-  ctx.shadowBlur = 70;
-  roundedRect(ctx, 28, 28, W - 56, H - 56, 26);
-  ctx.fillStyle = "rgba(4,8,16,0.92)";
-  ctx.fill();
-  ctx.restore();
-
-  roundedRect(ctx, 28, 28, W - 56, H - 56, 26);
-  const cardBorder = ctx.createLinearGradient(28, 28, W - 28, H - 28);
-  cardBorder.addColorStop(0, C);
-  cardBorder.addColorStop(0.6, C + "55");
-  cardBorder.addColorStop(1, C + "22");
-  ctx.strokeStyle = cardBorder;
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-
-  // Top stripe
-  roundedRect(ctx, 28, 28, W - 56, 80, 26);
-  const topSt = ctx.createLinearGradient(28, 28, W - 28, 28);
-  topSt.addColorStop(0, C + "66");
-  topSt.addColorStop(1, C + "0A");
-  ctx.fillStyle = topSt;
-  ctx.fill();
-
-  // Gloss
-  roundedRect(ctx, 32, 32, W - 64, 36, 22);
-  const gloss = ctx.createLinearGradient(0, 32, 0, 68);
-  gloss.addColorStop(0, "rgba(255,255,255,0.15)");
-  gloss.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = gloss;
-  ctx.fill();
-
-  // System label
-  ctx.save();
+  // Dynamic Title
   ctx.textAlign = "center";
-  ctx.font = "700 13px Rajdhani, Inter";
-  ctx.fillStyle = isSuccess ? "#059669" : "#9B1C1C";
-  ctx.fillText("◈  GATE ANALYSIS SYSTEM  ◈", W/2, 74);
-  ctx.restore();
-
-  // Status text
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "900 60px Orbitron, Inter";
-  ctx.fillStyle = C;
-  ctx.shadowColor = C;
-  ctx.shadowBlur = 40;
-  ctx.fillText(isSuccess ? "GATE CLEARED" : "GATE FAILED", W/2, 160);
+  ctx.fillStyle = color;
+  ctx.font = "900 20px Orbitron";
+  ctx.fillText("[ SYSTEM REPORT ]", W/2, 100);
+  
+  ctx.shadowColor = color; ctx.shadowBlur = 30;
+  ctx.font = "900 90px Orbitron";
+  ctx.fillText(isSuccess ? "GATE CLEARED" : "GATE COMPROMISED", W/2, 200);
   ctx.shadowBlur = 0;
-  ctx.restore();
 
-  // Difficulty
-  ctx.save();
-  ctx.textAlign = "center";
-  ctx.font = "700 24px Rajdhani, Inter";
-  ctx.fillStyle = "#94A3B8";
-  ctx.fillText("DIFFICULTY :  " + (difficultyText || "EXTREME").toUpperCase(), W/2, 205);
-  ctx.restore();
+  // Main Display
+  drawNeoUIBacking(ctx, 100, 260, 1100, 400, color);
 
-  // Divider
-  const divG = ctx.createLinearGradient(80, 0, W - 80, 0);
-  divG.addColorStop(0, "rgba(0,0,0,0)");
-  divG.addColorStop(0.5, C + "88");
-  divG.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = divG;
-  ctx.fillRect(80, 222, W - 160, 2);
+  // Difficulty Badge + Win chance %
+  drawEpic3DBox(ctx, W/2 - 150, 230, 300, 60, color);
+  ctx.fillStyle = "#FFF"; ctx.font = "900 28px Orbitron";
+  ctx.fillText(difficultyText.toUpperCase(), W/2, 272);
+  if (successChancePercent != null) {
+    ctx.font = "700 22px Rajdhani"; ctx.fillStyle = "#94A3B8";
+    ctx.fillText(`Win chance: ${successChancePercent}%`, W/2, 305);
+  }
 
   if (isSuccess) {
-    // Two reward boxes
-    const boxes = [
-      { label: "XP GAINED", val: "+" + Number(results.xp || 0) + " XP", col: "#3B82F6" },
-      { label: "GOLD LOOTED", val: "+" + Number(results.gold || 0) + " G", col: "#FBBF24" },
-    ];
-    const bW = 340, bH = 130;
-    const totalBoxW = boxes.length * bW + (boxes.length - 1) * 30;
-    let bStartX = W/2 - totalBoxW/2;
-    for (const box of boxes) {
-      const bX = bStartX, bY = 244;
-      ctx.save();
-      ctx.shadowColor = box.col;
-      ctx.shadowBlur = 30;
-      roundedRect(ctx, bX, bY, bW, bH, 20);
-      ctx.fillStyle = "rgba(5,10,24,0.88)";
-      ctx.fill();
-      ctx.restore();
+    // Rewards Flow
+    const rx = W/2;
+    ctx.textAlign = "center";
+    ctx.font = "700 24px Rajdhani"; ctx.fillStyle = "#94A3B8";
+    ctx.fillText("ANALYSIS: MISSION OBJECTIVES MET. LOOT DISTRIBUTION ENHANCED.", rx, 350);
 
-      roundedRect(ctx, bX, bY, bW, bH, 20);
-      ctx.strokeStyle = box.col + "55";
-      ctx.lineWidth = 2;
-      ctx.stroke();
+    // Gold Block
+    drawNeoUIBacking(ctx, 180, 400, 440, 200, "#FBBF24");
+    ctx.fillStyle = "#FBBF24"; ctx.font = "900 80px Orbitron";
+    ctx.fillText("+" + (results.gold || 0), 400, 520);
+    ctx.font = "700 22px Rajdhani"; ctx.fillStyle = "#FFF";
+    ctx.fillText("GOLD RECOVERED", 400, 560);
 
-      // Top colour line
-      roundedRect(ctx, bX, bY, bW, 8, 20);
-      ctx.fillStyle = box.col;
-      ctx.fill();
-
-      ctx.save();
-      ctx.textAlign = "center";
-      ctx.font = "700 16px Rajdhani, Inter";
-      ctx.fillStyle = "#64748B";
-      ctx.fillText(box.label, bX + bW/2, bY + 36);
-      ctx.font = "900 46px Orbitron, Inter";
-      ctx.fillStyle = box.col;
-      ctx.shadowColor = box.col;
-      ctx.shadowBlur = 20;
-      ctx.fillText(box.val, bX + bW/2, bY + 102);
-      ctx.shadowBlur = 0;
-      ctx.restore();
-
-      bStartX += bW + 30;
-    }
+    // XP Block
+    drawNeoUIBacking(ctx, 680, 400, 440, 200, "#3B82F6");
+    ctx.fillStyle = "#3B82F6"; ctx.font = "900 80px Orbitron";
+    ctx.fillText("+" + (results.xp || 0), 900, 520);
+    ctx.font = "700 22px Rajdhani"; ctx.fillStyle = "#FFF";
+    ctx.fillText("XP SYNCED", 900, 560);
   } else {
-    // Single penalty box
-    const pW = 480, pH = 130;
-    const pX = W/2 - pW/2, pY = 248;
-
-    ctx.save();
-    ctx.shadowColor = "#EF4444";
-    ctx.shadowBlur = 35;
-    roundedRect(ctx, pX, pY, pW, pH, 22);
-    ctx.fillStyle = "rgba(10,3,3,0.88)";
-    ctx.fill();
-    ctx.restore();
-
-    roundedRect(ctx, pX, pY, pW, pH, 22);
-    ctx.strokeStyle = "rgba(239,68,68,0.5)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    roundedRect(ctx, pX, pY, pW, 8, 22);
-    ctx.fillStyle = "#EF4444";
-    ctx.fill();
-
-    ctx.save();
+    // Failure UI
     ctx.textAlign = "center";
-    ctx.font = "700 17px Rajdhani, Inter";
-    ctx.fillStyle = "#64748B";
-    ctx.fillText("GOLD PENALTY", W/2, pY + 38);
-    ctx.font = "900 52px Orbitron, Inter";
-    ctx.fillStyle = "#EF4444";
-    ctx.shadowColor = "#EF4444";
-    ctx.shadowBlur = 22;
-    ctx.fillText("-" + Number(results.penalty || 0) + " GOLD", W/2, pY + 106);
+    ctx.font = "900 50px Orbitron"; ctx.fillStyle = "#EF4444";
+    ctx.shadowColor = "#EF4444"; ctx.shadowBlur = 20;
+    ctx.fillText("PENALTY APPLIED", W/2, 420);
     ctx.shadowBlur = 0;
-    ctx.restore();
+    
+    drawNeoUIBacking(ctx, W/2 - 300, 460, 600, 140, "#EF4444");
+    ctx.fillStyle = "#FFF"; ctx.font = "900 70px Orbitron";
+    ctx.fillText("-" + (results.penalty || 0) + " G", W/2, 555);
+    
+    ctx.font = "700 20px Rajdhani"; ctx.fillStyle = "#475569";
+    ctx.fillText("CRITICAL FAILURE: THE DUNGEON WAS NOT CLOSED IN TIME.", W/2, 640);
   }
 
-  // Footer
-  const hunter = results && results.hunter;
-  if (hunter) {
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.font = "700 17px Rajdhani, Inter";
-    ctx.fillStyle = "#475569";
-    ctx.fillText("LEVEL " + (hunter.level || "?") + "  ·  " + (hunter.rank || "?").toUpperCase(), W/2, H - 44);
-    ctx.restore();
-  }
-
-  ctx.save();
-  ctx.textAlign = "right";
-  ctx.font = "700 14px Rajdhani, Inter";
-  ctx.fillStyle = "rgba(255,255,255,0.10)";
-  ctx.fillText("SYSTEM  ·  LUCENT BOT", W - 44, H - 20);
-  ctx.restore();
+  // Scanning Line effect (decorative)
+  ctx.strokeStyle = color + "22"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(40, H/2 + Math.sin(Date.now()/500)*100); ctx.lineTo(W-40, H/2 + Math.sin(Date.now()/500)*100); ctx.stroke();
 
   return await canvas.toBuffer("png");
 }
@@ -3120,7 +2795,7 @@ async function generateStartCard(user, hunter) {
     ctx.strokeStyle=ms.color+"55"; ctx.lineWidth=1.5; ctx.stroke();
     // top accent
     roundedRect(ctx,mx+2,my+2,msW-4,3,2); ctx.fillStyle=ms.color; ctx.fill();
-    const mEmoji=ms.key&&STAT_EMOJI_IDS[ms.key]?await loadDiscordEmojiById(STAT_EMOJI_IDS[ms.key]):null;
+    const mEmoji=ms.key&&getStatEmojiIdsMap()[ms.key]?await loadDiscordEmojiById(getStatEmojiIdsMap()[ms.key]):null;
     let mlx=mx+10;
     if(mEmoji){ctx.drawImage(mEmoji,mlx,my+10,16,16);mlx+=20;}
     ctx.fillStyle="#4B5563"; ctx.font=lblFont(11); ctx.fillText(ms.label,mlx,my+22);
@@ -3138,7 +2813,7 @@ async function generateStartCard(user, hunter) {
 
   // section title
   ctx.font=lblFont(13); ctx.fillStyle="#1E3A5F";
-  ctx.fillText("═".repeat(52),CP_X+16,CP_Y+22);
+  ctx.fillText("╝".repeat(52),CP_X+16,CP_Y+22);
   ctx.fillStyle="#10B981"; ctx.fillText("[ SYSTEM ]  BASE ATTRIBUTES",CP_X+16,CP_Y+22);
 
   const attrs=[
@@ -3171,7 +2846,7 @@ async function generateStartCard(user, hunter) {
     ctx.fillStyle=agl; ctx.fill();
 
     // emoji + label
-    const aEmoji=await loadDiscordEmojiById(STAT_EMOJI_IDS[a.key]);
+    const aEmoji=await loadDiscordEmojiById(getStatEmojiIdsMap()[a.key]);
     let alx=ax+14;
     if(aEmoji){ctx.drawImage(aEmoji,alx,ay+14,22,22);alx+=28;}
     ctx.font=lblFont(14); ctx.fillStyle=a.color; ctx.fillText(a.abbr,alx,ay+30);
@@ -3199,7 +2874,7 @@ async function generateStartCard(user, hunter) {
 
   // section title
   ctx.font=lblFont(13); ctx.fillStyle="#1E3A5F";
-  ctx.fillText("═".repeat(44),RP_X+16,RP_Y+22);
+  ctx.fillText("╝".repeat(44),RP_X+16,RP_Y+22);
   ctx.fillStyle="#0EA5E9"; ctx.fillText("[ SYSTEM ]  AVAILABLE COMMANDS",RP_X+16,RP_Y+22);
 
   // command entries
@@ -3378,6 +3053,8 @@ module.exports = {
   generateStartCard,
   generateDungeonSpawnCard,
 };
+
+
 
 
 

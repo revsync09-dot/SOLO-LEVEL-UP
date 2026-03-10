@@ -1,4 +1,4 @@
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { ensureHunter, addXpAndGold } = require("../services/hunterService");
 const { getCooldown, setCooldown, remainingSeconds } = require("../services/cooldownService");
 const { randomInt } = require("../utils/math");
@@ -20,7 +20,7 @@ module.exports = {
     const gold = randomInt(200, 350);
     const xp = randomInt(30, 65);
     const progression = await addXpAndGold(interaction.user.id, interaction.guildId, xp, gold);
-    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const tomorrow = new Date(Date.now() + 24 * 180 * 180 * 1000).toISOString();
     await setCooldown(interaction.user.id, interaction.guildId, "guild_salary", tomorrow);
 
     const card = await generateSalaryCard(interaction.user, gold, progression.hunter.gold);

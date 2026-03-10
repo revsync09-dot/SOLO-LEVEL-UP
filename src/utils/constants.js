@@ -5,10 +5,13 @@ const RANKS = [
   "B-Rank",
   "A-Rank",
   "S-Rank",
+  "SS-Rank",
+  "SSS-Rank",
   "National Level",
   "Monarch Level",
   "Ruler Level",
   "Shadow Monarch",
+  "Absolute Being",
 ];
 
 const RANK_THRESHOLDS = {
@@ -18,10 +21,13 @@ const RANK_THRESHOLDS = {
   "B-Rank": 45,
   "A-Rank": 60,
   "S-Rank": 80,
-  "National Level": 100,
-  "Monarch Level": 120,
-  "Ruler Level": 140,
-  "Shadow Monarch": 160,
+  "SS-Rank": 100,
+  "SSS-Rank": 120,
+  "National Level": 140,
+  "Monarch Level": 170,
+  "Ruler Level": 200,
+  "Shadow Monarch": 250,
+  "Absolute Being": 350,
 };
 
 const LEGACY_RANK_MAP = {
@@ -31,11 +37,14 @@ const LEGACY_RANK_MAP = {
   B: "B-Rank",
   A: "A-Rank",
   S: "S-Rank",
+  SS: "SS-Rank",
+  SSS: "SSS-Rank",
   NATIONAL: "National Level",
   "NATIONAL LEVEL": "National Level",
   "MONARCH LEVEL": "Monarch Level",
   "RULER LEVEL": "Ruler Level",
   "SHADOW MONARCH": "Shadow Monarch",
+  "ABSOLUTE BEING": "Absolute Being",
 };
 
 function normalizeRank(rank) {
@@ -55,10 +64,13 @@ function rankBadgeText(rank) {
     "B-Rank": "B",
     "A-Rank": "A",
     "S-Rank": "S",
+    "SS-Rank": "SS",
+    "SSS-Rank": "SSS",
     "National Level": "N",
     "Monarch Level": "M",
     "Ruler Level": "R",
     "Shadow Monarch": "SM",
+    "Absolute Being": "AB",
   };
   return map[normalized] || "E";
 }
@@ -72,10 +84,13 @@ function rankColor(rank) {
     "B-Rank": "#3B82F6",
     "A-Rank": "#F59E0B",
     "S-Rank": "#EF4444",
+    "SS-Rank": "#F43F5E",
+    "SSS-Rank": "#E11D48",
     "National Level": "#F97316",
     "Monarch Level": "#EC4899",
     "Ruler Level": "#22D3EE",
     "Shadow Monarch": "#A855F7",
+    "Absolute Being": "#FFFFFF",
   };
   return map[normalized] || "#94A3B8";
 }
@@ -86,6 +101,7 @@ const DUNGEON_DIFFICULTIES = {
   hard: { label: "Hard", multiplier: 1.3, xp: [130, 210], gold: [110, 220], arise: 0.05 },
   elite: { label: "Elite", multiplier: 1.7, xp: [220, 330], gold: [200, 360], arise: 0.08 },
   raid: { label: "Raid", multiplier: 2.2, xp: [320, 500], gold: [300, 580], arise: 0.12 },
+  monarch: { label: "Monarch Raid", multiplier: 3.5, xp: [1000, 2500], gold: [1000, 5000], arise: 0.25 },
 };
 
 const SHADOW_RARITY = [
@@ -96,19 +112,30 @@ const SHADOW_RARITY = [
   { name: "Mythic", min: 98, max: 100, bonus: 32 },
 ];
 
-const HUNTER_CLASSES = ["mage", "assassin", "summoner", "warrior", "tank"];
+const HUNTER_CLASSES = [
+  "warrior", "mage", "assassin", "summoner", "tank",
+  "knight", "necromancer", "element_mage", "shadow_assassin"
+];
+
+const HUNTER_RACES = ["human", "beast", "dragon", "elf"];
+
+const RARITY_TIERS = ["Normal", "Exotic", "Special", "Legendary", "Ultra", "Mythic"];
 
 const STATUS_EFFECTS = ["Poison", "Acid", "Bleed", "Burn", "Freeze", "Shock"];
 
 const CLASS_WEAPON_DROPS = {
-  mage: ["Arcane Staff", "Mana Scepter", "Elder Grimoire"],
-  assassin: ["Twin Daggers", "Shadow Dagger", "Silent Blade"],
+  mage: ["Arcane Staff", "Mana Scepter", "Elder Grimoire", "3 Element Staff"],
+  element_mage: ["Elemental Core", "Staff of Storms", "3 Element Staff"],
+  assassin: ["Twin Daggers", "Shadow Dagger", "Silent Blade", "Kamish's Wrath"],
+  shadow_assassin: ["Soul Dagger", "Void Blade", "Kamish's Wrath"],
   summoner: ["Spirit Codex", "Soul Bell", "Summoner Orb"],
-  warrior: ["Knight Longsword", "Jeju Greatsword", "Crimson Blade"],
-  tank: ["Guardian Shield", "Titan Tower Shield", "Aegis Buckler"],
+  necromancer: ["Heart of Monarch", "Shadow Grimoire", "Soul Bell"],
+  warrior: ["Knight Longsword", "Jeju Greatsword", "Crimson Blade", "Demon King Longsword"],
+  knight: ["Royal Sword", "Guardian Shield", "Demon King Longsword"],
+  tank: ["Guardian Shield", "Titan Tower Shield", "Aegis Buckler", "Dragon Scale Shield"],
 };
 
-const COMPANION_DROPS = ["Igris", "Tusk", "SJW Summon"];
+const COMPANION_DROPS = ["Igris", "Tusk", "SJW Summon", "Beru", "Kaisel", "Iron", "Greed"];
 
 module.exports = {
   RANKS,
@@ -116,6 +143,8 @@ module.exports = {
   DUNGEON_DIFFICULTIES,
   SHADOW_RARITY,
   HUNTER_CLASSES,
+  HUNTER_RACES,
+  RARITY_TIERS,
   STATUS_EFFECTS,
   CLASS_WEAPON_DROPS,
   COMPANION_DROPS,

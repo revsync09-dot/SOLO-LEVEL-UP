@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { ensureHunter } = require("../services/hunterService");
 const { runPvp } = require("../services/pvpService");
 const { generateBattleResultCard } = require("../services/cardGenerator");
@@ -11,7 +11,7 @@ module.exports = {
     .setDescription("Battle another hunter (PvP).")
     .addUserOption((option) => option.setName("opponent").setDescription("Target hunter").setRequired(true)),
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const cd = await getCooldown(interaction.user.id, interaction.guildId, "battle");
     if (cd && new Date(cd.available_at).getTime() > Date.now()) {
       await interaction.editReply({ content: `Battle cooldown active: ${cooldownRemaining(cd.available_at)}s` });

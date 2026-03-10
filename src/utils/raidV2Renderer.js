@@ -9,9 +9,11 @@ const {
   TextDisplayBuilder,
 } = require("discord.js");
 
-const ATTACK_EMOJI_ID = "1136755867899924480";
-const GUARD_EMOJI_ID = "1043563693557956708";
-const SKILL_EMOJI_ID = "1473673520549462229";
+const { getRaidIds } = require("../config/emojis");
+
+function raidEmojiIds() {
+  return getRaidIds();
+}
 
 function buildLobbyPayload(view) {
   const top = [
@@ -19,8 +21,6 @@ function buildLobbyPayload(view) {
     `Session: \`${view.id}\``,
     `Difficulty: **${view.difficultyLabel}** | Rounds: **${view.maxRounds}**`,
   ].join("\n");
-
-  const line = "_______________________________";
 
   const party = [
     "**Hunters Inside**",
@@ -37,85 +37,57 @@ function buildLobbyPayload(view) {
 
   const container = new ContainerBuilder()
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(top))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(line))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent("_______________________________"))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(party))
     .addActionRowComponents(row);
 
   return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
-function buildBattlePayload(view, forUserId = null) {
-  let intentText = "";
-  if (view.bossIntent === "ultimate") {
-    intentText = `\n> ⚠️ **DANGER:** ${view.boss.name} is preparing ${view.bossIntentName}! GUARD NOW!`;
-  } else if (view.bossIntent === "charge") {
-    intentText = `\n> ⚡ **WARNING:** ${view.boss.name} is charging energy...`;
-  } else {
-    intentText = `\n> ⚔️ ${view.boss.name} is preparing to attack!`;
-  }
-
+function buildBattlePayload(view) {
   const bossTop = [
     `**Boss: ${view.boss.name}**`,
     `Round: **${view.round}/${view.maxRounds}** | Difficulty: **${view.difficultyLabel}**`,
     `HP: ${view.bossHpBar}`,
-    intentText
   ].join("\n");
-
-  const line = "_______________________________";
 
   const playerList = [
     "**Player Status**",
     ...view.players.map(
       (p) =>
         `${p.mention} | DMG **${p.totalDamage}** | HP ${p.hpBar} | Kits ${p.healKits} | ${
-          p.dead ? "DEFEATED" : p.acted ? "Acted" : "Ready"
+          p.dead ? "DEFEATED" : p.afkTimeout ? "AFK" : p.acted ? "Acted" : "Ready"
         }`
     ),
   ].join("\n");
 
-  // Show combat log from previous round
-  let logText = "";
-  if (view.combatLog && view.combatLog.length > 0) {
-    logText = "\n" + line + "\n**Combat Log**\n" + view.combatLog.map(l => "> " + l).join("\n");
-  }
+  const combatLog = [
+    "**Combat Log**",
+    ...((view.combatLog || []).slice(0, 6)),
+  ].join("\n");
 
+  const ids = raidEmojiIds();
+  const attackBtn = new ButtonBuilder()
+    .setCustomId(`raid_act:${view.id}:attack`)
+    .setLabel("Attack")
+    .setStyle(ButtonStyle.Danger);
+  if (ids.attack && String(ids.attack).trim()) attackBtn.setEmoji({ id: String(ids.attack).trim() });
+  const guardBtn = new ButtonBuilder()
+    .setCustomId(`raid_act:${view.id}:guard`)
+    .setLabel("Guard")
+    .setStyle(ButtonStyle.Secondary);
+  if (ids.guard && String(ids.guard).trim()) guardBtn.setEmoji({ id: String(ids.guard).trim() });
+  const skillBtn = new ButtonBuilder()
+    .setCustomId(`raid_act:${view.id}:skill`)
+    .setLabel("Skill")
+    .setStyle(ButtonStyle.Primary);
+  if (ids.skill && String(ids.skill).trim()) skillBtn.setEmoji({ id: String(ids.skill).trim() });
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`raid_act:${view.id}:attack`)
-      .setLabel("Attack")
-      .setStyle(ButtonStyle.Danger)
-      .setEmoji({ id: ATTACK_EMOJI_ID }),
-    new ButtonBuilder()
-      .setCustomId(`raid_act:${view.id}:guard`)
-      .setLabel("Guard")
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji({ id: GUARD_EMOJI_ID }),
+    attackBtn,
+    guardBtn,
+    skillBtn,
     new ButtonBuilder().setCustomId(`raid_act:${view.id}:heal`).setLabel("Heal").setStyle(ButtonStyle.Success)
   );
-
-  // If the specific user looking at this has active skills from /use, show them as a select menu!
-  let skillRow = null;
-  if (forUserId) {
-    const p = view.players.find(x => x.userId === forUserId);
-    if (p && p.skills) {
-      const availableSkills = Object.entries(p.skills).filter(([k, count]) => Number(count) > 0);
-      if (availableSkills.length > 0) {
-        const { StringSelectMenuBuilder } = require("discord.js");
-        const select = new StringSelectMenuBuilder()
-          .setCustomId(`raid_act:${view.id}:skill_select`)
-          .setPlaceholder("Use an active Skill...")
-          .addOptions(
-            availableSkills.map(([k, c]) => ({
-              label: `Use ${k.replace("_", " ").toUpperCase()} (${c}x left)`,
-              value: `skill:${k}`,
-              description: "Consumes 1 active skill scroll",
-              emoji: { id: SKILL_EMOJI_ID }
-            }))
-          );
-        skillRow = new ActionRowBuilder().addComponents(select);
-      }
-    }
-  }
 
   const container = new ContainerBuilder();
   if (view.roundBannerUrl) {
@@ -125,16 +97,49 @@ function buildBattlePayload(view, forUserId = null) {
   }
   container
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(bossTop))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(line))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(playerList + logText))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent("_______________________________"))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(playerList))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(combatLog))
     .addActionRowComponents(row);
-
-  if (skillRow) {
-    container.addActionRowComponents(skillRow);
-  }
 
   return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
+
+/** Final battle state when raid ended – no buttons so no one can click and get "Action failed". */
+function buildBattleEndedPayload(view, won) {
+  const bossTop = [
+    `**Boss: ${view.boss?.name ?? "—"}**`,
+    `Round: **${view.round}/${view.maxRounds}** | ${won ? "Cleared" : "Failed"}`,
+    view.bossHpBar ? `HP: ${view.bossHpBar}` : "—",
+  ].join("\n");
+
+  const playerList = [
+    "**Player Status**",
+    ...(view.players || []).map(
+      (p) =>
+        `${p.mention} | DMG **${p.totalDamage}** | HP ${p.hpBar} | ${p.dead ? "DEFEATED" : "Alive"}`
+    ),
+  ].join("\n");
+
+  const combatLog = ["**Combat Log**", ...((view.combatLog || []).slice(0, 6))].join("\n");
+  const footer = "**Raid ended.** See rewards below. Do not use the buttons on this message.";
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(bossTop))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent("_______________________________"))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(playerList))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(combatLog))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(footer));
+  return { components: [container], flags: MessageFlags.IsComponentsV2 };
+}
+
+/** Shown when someone clicks on an already-ended raid (session missing) – removes buttons. */
+function buildRaidExpiredPayload() {
+  const container = new ContainerBuilder().addTextDisplayComponents(
+    new TextDisplayBuilder().setContent("**This raid has already ended.** Buttons were removed to avoid errors.")
+  );
+  return { components: [container], flags: MessageFlags.IsComponentsV2 };
+}
+
 function buildDefeatedPayload(view) {
   const lines = ["**Defeated Hunters**", ...(view.defeated.length ? view.defeated : ["No one is defeated."])];
   const container = new ContainerBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
@@ -142,14 +147,22 @@ function buildDefeatedPayload(view) {
 }
 
 function buildRewardsPayload(view, won) {
+  const mvpPlayer = (view.players || []).reduce((best, p) => {
+    if (!best) return p;
+    return Number(p.totalDamage || 0) > Number(best.totalDamage || 0) ? p : best;
+  }, null);
+
   const lines = [
     `**Raid ${won ? "Cleared" : "Failed"}**`,
     `Boss: **${view.boss.name}**`,
+    mvpPlayer ? `**MVP:** <@${mvpPlayer.userId}> | Damage: **${Number(mvpPlayer.totalDamage || 0)}**` : "**MVP:** None",
     "_______________________________",
     "**Rewards**",
     ...view.rewards.map((r) => {
       const card = r.card ? ` | Card: **${r.card}**` : "";
-      return `<@${r.userId}> -> XP ${r.xp} | Gold ${r.gold}${card}${r.mvp ? " 👑 **MVP**" : ""}`;
+      const mvp = r.mvp ? " | MVP" : "";
+      const dmg = ` | DMG ${Number(r.damage || 0)}`;
+      return `<@${r.userId}> -> XP ${r.xp} | Gold ${r.gold}${dmg}${mvp}${card}`;
     }),
   ];
 
@@ -160,6 +173,8 @@ function buildRewardsPayload(view, won) {
 module.exports = {
   buildLobbyPayload,
   buildBattlePayload,
+  buildBattleEndedPayload,
+  buildRaidExpiredPayload,
   buildDefeatedPayload,
   buildRewardsPayload,
 };

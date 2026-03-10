@@ -1,58 +1,49 @@
-const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder } = require("discord.js");
-
-const HELP_EMOJI = "<:help:976524440080883802>";
+const { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } = require("discord.js");
+const { getHelpEmoji } = require("../config/emojis");
 
 module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("help")
-    .setDescription("Show all bot commands and features."),
-    
+  data: new SlashCommandBuilder().setName("help").setDescription("Show clear command guide for players."),
   async execute(interaction) {
     const lines = [
-      `${HELP_EMOJI} **Solo Leveling Help**`,
+      `${getHelpEmoji()} **Solo Leveling Help**`,
       "",
-      "**Slash Commands**",
-      "`/start` - Register your hunter profile",
-      "`/profile` - View your profile card",
-      "`/hunt` - Start a hunt (chance for unique card)",
-      "`/dungeon` - Start a dungeon run",
-      "`/class` - View or change your class",
-      "`/inventory` - View your inventory",
-      "`/cards` - View your card collection",
-      "`/stats` - Show detailed stats",
-      "`/rankup` - Take the rank exam",
-      "`/battle` - PvP battle against another hunter",
-      "`/shop` - Open the shop",
-      "`/use` - Use a purchased item",
-      "`/help` - Show this help menu",
+      "**Start Here**",
+      "`/start` create your hunter profile",
+      "`/hunt` earn XP + gold",
+      "`/profile` and `/stats` check your progress",
       "",
-      "**Prefix Commands (`!` and `?`)**",
-      "`!help` or `?help` - Show help menu",
-      "`!profile` or `?profile` - View profile",
-      "`!hunt` or `?hunt` - Start hunt",
-      "`!stats` or `?stats` - Show stats",
-      "`!class <type>` - Change class",
-      "`!dungeon <difficulty>` - Start dungeon",
+      "**Main Gameplay**",
+      "Auto dungeon events spawn in the configured channel",
+      "`/battle` fight another player for rewards",
+      "`/shop` buy items",
+      "`/use` activate bought items/skills",
+      "`/class` view or change class (needs Reawakened Stone)",
+      "`/inventory` and `/cards` view items/cards",
       "",
-      "**System Info**",
-      "Unique card available: **Shadow Monarch**",
-      "Card drop chance: **0.025%**",
-      "Auto dungeon event spawns every 1 hour",
+      "**Event Features**",
+      "`!leaderboard` top combat power, gold, clears, damage",
+      "`!faction` and `!faction join <name>`",
+      "`!quests` and `!claimquests`",
+      "`!prestige` (level 100+)",
+      "",
+      "**Guild Features**",
+      "`!setupguild create <name>` (level 20+)",
+      "`!setupguild join <clanId>`",
+      "`!setupguild info` / `!setupguild members`",
+      "`!guildbattle @owner`",
+      "",
+      "**Tip**",
+      "Use `!help` for prefix command guide.",
     ];
 
     const container = new ContainerBuilder().addTextDisplayComponents(
       new TextDisplayBuilder().setContent(lines.join("\n"))
     );
 
-    const { MessageFlags } = require("discord.js");
-    let flags = 0;
-    if (MessageFlags && MessageFlags.IsComponentsV2) flags |= MessageFlags.IsComponentsV2;
-    if (MessageFlags && MessageFlags.Ephemeral) flags |= MessageFlags.Ephemeral;
-    else flags |= 64;
-
     await interaction.reply({
       components: [container],
-      flags,
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
     });
   },
 };
+

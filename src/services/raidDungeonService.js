@@ -5,8 +5,10 @@ const { ensureHunter, addXpAndGold } = require("./hunterService");
 const { getEquippedShadows } = require("./shadowService");
 const { getBattleBonus, tryGrantSingleCard } = require("./cardsService");
 const { updateUser } = require("./database");
+const { recordDamage, recordDungeonClear, recordHeal } = require("./eventService");
 
 const sessions = new Map();
+const ROUND_ACTION_TIMEOUT_MS = 30_000;
 
 const DEFAULT_ROUND_BANNERS = [
   "https://media.discordapp.net/attachments/1477018034169188362/1477412590534787122/sung-jin-woo-spinning-solo-leveling-episode-12-9p9rleq0o9kx8qyy.webp?ex=69a4ab32&is=69a359b2&hm=6f79fcae8bf77d9f62ed62ed92895d81051164b9227cfe2e3f58ce760028ed35&=&animated=true",
@@ -49,12 +51,25 @@ function parseRoundBanners(raw) {
 const ROUND_BANNERS = parseRoundBanners(ROUND_BANNERS_ENV);
 
 const SOLO_LEVELING_BOSSES = [
+  { name: "Cerberus", baseHp: 3200, attack: 150 },
+  { name: "Metus", baseHp: 3300, attack: 152 },
+  { name: "Baruka", baseHp: 3500, attack: 165 },
   { name: "Baran", baseHp: 3600, attack: 170 },
   { name: "Vulcan", baseHp: 3400, attack: 155 },
   { name: "Kargalgan", baseHp: 3000, attack: 145 },
+  { name: "Igris", baseHp: 3800, attack: 178 },
   { name: "Ant King", baseHp: 4200, attack: 190 },
   { name: "Architect", baseHp: 3900, attack: 180 },
+  { name: "Frost Monarch", baseHp: 4700, attack: 214 },
+  { name: "Beast Monarch", baseHp: 4850, attack: 220 },
+  { name: "Plague Monarch", baseHp: 5000, attack: 228 },
+  { name: "Monarch of Iron Body", baseHp: 5200, attack: 236 },
   { name: "Demon Monarch", baseHp: 4600, attack: 210 },
+  { name: "Antares", baseHp: 5600, attack: 255 },
+  { name: "Ashborn", baseHp: 6000, attack: 300 },
+  { name: "Reve", baseHp: 5500, attack: 240 },
+  { name: "Eden", baseHp: 5300, attack: 230 },
+  { name: "Kallavan", baseHp: 4800, attack: 205 },
 ];
 
 function createId() {
@@ -143,6 +158,7 @@ function createLobby({ guildId, channelId, ownerId, difficultyKey = "normal" }) 
     rewards: [],
     boss: null,
     bannerOrder: shuffleRoundBanners(),
+    roundStartedAt: null,
   };
   sessions.set(sessionId, session);
   return session;
@@ -165,6 +181,7 @@ function createLobbyWithId({ sessionId, guildId, channelId, ownerId, difficultyK
     rewards: [],
     boss: null,
     bannerOrder: shuffleRoundBanners(),
+    roundStartedAt: null,
   };
   sessions.set(id, session);
   return session;
@@ -237,7 +254,7 @@ async function joinLobby(sessionId, userId, guildId) {
   if (session.state !== "lobby") return { ok: false, reason: "started" };
   if (session.guildId !== guildId) return { ok: false, reason: "wrong_guild" };
   if (session.participants.has(userId)) return { ok: true, session, joined: false };
-  if (session.participants.size >= 8) return { ok: false, reason: "full" };
+  if (session.participants.size >= 12) return { ok: false, reason: "full" };
 
   const hunter = await ensureHunter({ userId, guildId });
   const shadows = await getEquippedShadows(userId, guildId);
@@ -279,13 +296,23 @@ async function startRaid(sessionId, starterId) {
   session.boss.intentName = "";
   session.combatLog = ["The Raid begins! Boss approaches."];
   session.mvpUserId = null;
-  for (const p of session.participants.values()) p.acted = false;
+  session.roundStartedAt = Date.now();
+  for (const p of session.participants.values()) {
+    p.acted = false;
+    p.afkTimeout = false;
+  }
   return { ok: true, session };
 }
 
 function actionDamage(participant, action, sessionLogs) {
   const h = participant.hunter;
   const base = computePower(h, participant.shadows, Number(participant.cardBonus || 0)) * 0.5 + Number(h.level || 1) * 8;
+
+  if (action === "skill") {
+    const preferred = ["monarch_roar", "flame_slash", "shadow_step"];
+    const chosen = preferred.find((k) => Number(participant.skills[k] || 0) > 0);
+    action = chosen ? `skill:${chosen}` : "attack";
+  }
 
   participant.lastAction = action;
 
@@ -340,12 +367,28 @@ function everyoneActed(session) {
   return true;
 }
 
+/** Bot auto-resolves inactive players with the same actions as real buttons: attack, guard, or skill. */
+function autoResolveInactivePlayers(session) {
+  const logs = Array.isArray(session.combatLog) ? [...session.combatLog] : [];
+  const actions = ["attack", "attack", "guard", "skill"];
+  for (const p of session.participants.values()) {
+    if (p.dead || p.acted) continue;
+    const action = actions[randomInt(0, actions.length - 1)];
+    const dmg = actionDamage(p, action, logs);
+    p.totalDamage += dmg;
+    p.acted = true;
+    p.afkTimeout = true;
+    session.boss.hp = Math.max(0, session.boss.hp - dmg);
+  }
+  session.combatLog = logs;
+}
+
 function applyBossStrike(session) {
   const alive = listParticipants(session).filter((p) => !p.dead);
   if (!alive.length) return;
   
   const isUltimate = session.boss.intent === "ultimate";
-  const logs = [];
+  const logs = Array.isArray(session.combatLog) ? [...session.combatLog] : [];
   
   if (isUltimate) {
     logs.push(`[ALERT] ${session.boss.name} unleashed ${session.boss.intentName || 'Devastating Ultimate'}!`);
@@ -423,12 +466,10 @@ async function finalizeRaid(session) {
   // Find MVP (most damage)
   let mvpId = null;
   let maxDmg = -1;
-  if (won) {
-    for (const p of session.participants.values()) {
-      if (p.totalDamage > maxDmg) { maxDmg = p.totalDamage; mvpId = p.userId; }
-    }
-    session.mvpUserId = mvpId;
+  for (const p of session.participants.values()) {
+    if (p.totalDamage > maxDmg) { maxDmg = p.totalDamage; mvpId = p.userId; }
   }
+  session.mvpUserId = mvpId;
 
   for (const p of session.participants.values()) {
     const aliveAtEnd = !p.dead;
@@ -436,13 +477,19 @@ async function finalizeRaid(session) {
       let xp = randomInt(cfg.xp[0], cfg.xp[1]);
       let gold = randomInt(cfg.gold[0], cfg.gold[1]);
       let isMvp = (p.userId === mvpId);
+      const damageBonusXp = Math.min(450, Math.floor(Number(p.totalDamage || 0) / 500));
+      const damageBonusGold = Math.min(700, Math.floor(Number(p.totalDamage || 0) / 350));
       
       if (isMvp) {
         xp = Math.floor(xp * 1.5); // MVP +50%
         gold = Math.floor(gold * 1.5) + 500;
       }
+      xp += damageBonusXp;
+      gold += damageBonusGold;
       
       const progression = await addXpAndGold(p.userId, session.guildId, xp, gold);
+      await recordDamage(session.guildId, p.userId, Number(p.totalDamage || 0));
+      await recordDungeonClear(session.guildId, p.userId);
       // MVP has much higher drop chance
       const rand = Math.random();
       const dropChance = isMvp ? 0.08 : 0.01;
@@ -451,12 +498,13 @@ async function finalizeRaid(session) {
          const drop = await tryGrantSingleCard(progression.hunter);
          if (drop.granted) cardName = drop.card.name;
       }
-      rewards.push({ userId: p.userId, xp, gold, card: cardName, alive: true, mvp: isMvp });
+      rewards.push({ userId: p.userId, xp, gold, card: cardName, alive: true, mvp: isMvp, damage: Number(p.totalDamage || 0) });
     } else {
       const xp = Math.floor(cfg.xp[0] * 0.2);
       const penalty = randomInt(12, 40);
       await addXpAndGold(p.userId, session.guildId, xp, -penalty);
-      rewards.push({ userId: p.userId, xp, gold: -penalty, card: null, alive: false, mvp: false });
+      await recordDamage(session.guildId, p.userId, Number(p.totalDamage || 0));
+      rewards.push({ userId: p.userId, xp, gold: -penalty, card: null, alive: false, mvp: false, damage: Number(p.totalDamage || 0) });
     }
   }
 
@@ -467,7 +515,53 @@ async function finalizeRaid(session) {
 function startNextRound(session) {
   applyBossStrike(session);
   session.round += 1;
-  for (const part of session.participants.values()) part.acted = false;
+  session.roundStartedAt = Date.now();
+  for (const part of session.participants.values()) {
+    part.acted = false;
+    part.afkTimeout = false;
+  }
+}
+
+async function handleRoundTimeout(sessionId) {
+  const session = getSession(sessionId);
+  if (!session) return { ok: false, reason: "missing" };
+  if (session.state !== "in_progress") return { ok: false, reason: "not_running" };
+
+  const startedAt = Number(session.roundStartedAt || 0);
+  const now = Date.now();
+  const elapsed = startedAt > 0 ? now - startedAt : ROUND_ACTION_TIMEOUT_MS;
+  if (elapsed < ROUND_ACTION_TIMEOUT_MS) {
+    return {
+      ok: false,
+      reason: "too_early",
+      retryAfterMs: ROUND_ACTION_TIMEOUT_MS - elapsed,
+      session,
+    };
+  }
+
+  const timedOut = [];
+  for (const p of session.participants.values()) {
+    if (p.dead || p.acted) continue;
+    p.acted = true;
+    p.afkTimeout = true;
+    timedOut.push(p.userId);
+  }
+
+  if (timedOut.length) {
+    const timeoutLogs = timedOut.map((id) => `Oh yow <@${id}> you forgot do attack.`);
+    session.combatLog = [...timeoutLogs, ...(Array.isArray(session.combatLog) ? session.combatLog : [])];
+  }
+
+  let progressedRound = false;
+  let ended = false;
+  if (everyoneActed(session) || shouldAutoAdvanceByHalfHp(session)) {
+    startNextRound(session);
+    progressedRound = true;
+    ended = raidEnded(session);
+  }
+
+  const finalResult = ended ? await finalizeRaid(session) : null;
+  return { ok: true, session, timedOut, progressedRound, ended, finalResult };
 }
 
 async function performAction(sessionId, userId, action) {
@@ -503,12 +597,15 @@ async function performAction(sessionId, userId, action) {
     const healAmount = Math.floor(p.maxHp * 0.35);
     p.hp = Math.min(p.maxHp, p.hp + healAmount);
     p.acted = true;
+    await recordHeal(session.guildId, p.userId, 1);
   }
 
   const dmg = actionDamage(p, action, session.combatLog);
   p.totalDamage += dmg;
   if (!p.acted) p.acted = true;
   session.boss.hp = Math.max(0, session.boss.hp - dmg);
+
+  autoResolveInactivePlayers(session);
 
   let progressedRound = false;
   let ended = false;
@@ -573,6 +670,7 @@ function summary(session) {
       maxHp: part.maxHp,
       hpBar: healthBar(part.hp, part.maxHp, 14),
       acted: part.acted,
+      afkTimeout: Boolean(part.afkTimeout),
       dead: part.dead,
       totalDamage: part.totalDamage,
       healKits: Number(part.healKits || 0),
@@ -581,6 +679,10 @@ function summary(session) {
     defeated: Array.from(session.defeated.values()).map((id) => participantTag(id)),
     rewards: session.rewards || [],
   };
+}
+
+function getRaidBossNames() {
+  return SOLO_LEVELING_BOSSES.map((b) => b.name);
 }
 
 module.exports = {
@@ -593,5 +695,8 @@ module.exports = {
   startRaid,
   performAction,
   forceNextRound,
+  handleRoundTimeout,
+  ROUND_ACTION_TIMEOUT_MS,
+  getRaidBossNames,
   summary,
 };

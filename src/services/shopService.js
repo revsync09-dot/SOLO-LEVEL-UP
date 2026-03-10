@@ -8,21 +8,20 @@ const {
   StringSelectMenuBuilder,
   TextDisplayBuilder,
 } = require("discord.js");
-
-// ── Custom Discord Emoji Helpers ──────────────────────────────────
-// Text content in Discord requires the REAL emoji name: <:real_name:id>
-// Since we only have IDs, we use unicode in text and custom emojis on buttons only.
-// Buttons work with just { id } via setEmoji().
+const { getShopNavIds, getShopItemEmojiId, getShopDisplayEmojis } = require("../config/emojis");
 
 function btnEmoji(id, anim) { return { id, animated: !!anim }; }
 
-const E = {
-  shop:    "<a:e:1445924320730808391>",
-  gold:    "<:e:1006637475067859105>",
-  success: "<a:e:1473670205094887474>",
-  error:   "<:e:1006637475067859105>",
-  page:    "<:e:1437069843353571449>",
-};
+function getItemEmoji(item) {
+  if (!item?.emoji) return null;
+  const id = getShopItemEmojiId(item.key, item.emoji.id);
+  if (!id || !String(id).trim()) return item.emoji;
+  return { id: String(id).trim(), animated: !!item.emoji.animated };
+}
+
+function E() {
+  return getShopDisplayEmojis();
+}
 
 // ── Shop Items ────────────────────────────────────────────────────
 const SHOP_ITEMS = [
@@ -31,21 +30,23 @@ const SHOP_ITEMS = [
     name: "Mana Potion",
     description: "+100 mana instantly",
     lore: "A shimmering vial of compressed mana essence, brewed by S-rank alchemists.",
-    price: 120,
+    price: 320,
     rarity: "Common",
     category: "consumable",
     emoji: { id: "1475915084911087708", animated: false },
-    apply: (hunter) => ({ mana: Math.min(9999, Number(hunter.mana || 0) + 100) }),
+    inventoryToken: "item:mana_potion",
+    apply: () => ({}),
   },
   {
     key: "hunter_key",
     name: "Hunter Key",
     description: "Used for advanced gate access",
     lore: "An ornate key etched with runes. Opens gates beyond normal rank restrictions.",
-    price: 180,
+    price: 480,
     rarity: "Uncommon",
     category: "consumable",
     emoji: { id: "1475924101179899994", animated: false },
+    inventoryToken: "item:hunter_key",
     apply: () => ({}),
   },
   {
@@ -57,21 +58,15 @@ const SHOP_ITEMS = [
     rarity: "Rare",
     category: "special",
     emoji: { id: "1475924134650445884", animated: false },
-    apply: (hunter) => ({
-      strength: 5, agility: 5, intelligence: 5, vitality: 5,
-      stat_points: Number(hunter.stat_points || 0)
-        + Math.max(0, Number(hunter.strength || 5) - 5)
-        + Math.max(0, Number(hunter.agility || 5) - 5)
-        + Math.max(0, Number(hunter.intelligence || 5) - 5)
-        + Math.max(0, Number(hunter.vitality || 5) - 5),
-    }),
+    inventoryToken: "item:stat_reset_token",
+    apply: () => ({}),
   },
   {
     key: "shadow_essence",
     name: "Shadow Essence",
     description: "Material for shadow enhancement",
     lore: "Raw shadow energy crystallized from defeated monarchs. Used in enhancement rituals.",
-    price: 260,
+    price: 1750,
     rarity: "Rare",
     category: "material",
     emoji: { id: "1477554399097389198", animated: false },
@@ -83,7 +78,7 @@ const SHOP_ITEMS = [
     name: "Gate Crystal",
     description: "Improves gate reward quality",
     lore: "A pulsating crystal forged at the core of a double-dungeon gate. Enhances loot drops.",
-    price: 320,
+    price: 800,
     rarity: "Rare",
     category: "material",
     emoji: { id: "1477554472032014449", animated: false },
@@ -95,7 +90,7 @@ const SHOP_ITEMS = [
     name: "Rune Fragment",
     description: "Rare fragment from dungeon relics",
     lore: "A shard of an ancient relic, humming with residual magic power.",
-    price: 380,
+    price: 1200,
     rarity: "Epic",
     category: "material",
     emoji: { id: "1477554321074950194", animated: false },
@@ -107,7 +102,7 @@ const SHOP_ITEMS = [
     name: "Jeju Ant Core",
     description: "High-tier raid crafting core",
     lore: "Extracted from the heart of a Jeju Island mutant ant. Required for elite crafting.",
-    price: 560,
+    price: 500,
     rarity: "Epic",
     category: "material",
     emoji: { id: "1477554431238344735", animated: false },
@@ -119,7 +114,7 @@ const SHOP_ITEMS = [
     name: "Reawakened Stone",
     description: "Use with /class to change your hunter class",
     lore: "A stone vibrating with second-awakening energy. Those who hold it feel their power shift.",
-    price: 5000,
+    price: 10000,
     rarity: "Epic",
     category: "special",
     emoji: { id: "1477554358525890601", animated: false },
@@ -179,11 +174,60 @@ const SHOP_ITEMS = [
     name: "Raid Medkit",
     description: "Used in raid battle to heal yourself",
     lore: "Military-grade emergency kit stocked by the Hunter Association for raid operations.",
-    price: 300,
+    price: 900,
     rarity: "Uncommon",
     category: "consumable",
     emoji: { id: "1477557061935173733", animated: false },
     inventoryToken: "raid_heal_kit",
+    apply: () => ({}),
+  },
+  // ── Loot Boxes ─────────────────────────────────────────────────────────────
+  {
+    key: "loot_box_common",
+    name: "Common Loot Box",
+    description: "Open with !lootbox common — random XP, Gold & items",
+    lore: "A sealed chest dropped by low-rank monsters. Contents unknown but promising.",
+    price: 400,
+    rarity: "Common",
+    category: "lootbox",
+    emoji: { id: "1477554431238344735", animated: false },
+    inventoryToken: "loot_box:common",
+    apply: () => ({}),
+  },
+  {
+    key: "loot_box_rare",
+    name: "Rare Loot Box",
+    description: "Open with !lootbox rare — better drops than Common",
+    lore: "A reinforced chest from a dungeon boss's personal vault. Quality guaranteed.",
+    price: 1200,
+    rarity: "Rare",
+    category: "lootbox",
+    emoji: { id: "1477554472032014449", animated: false },
+    inventoryToken: "loot_box:rare",
+    apply: () => ({}),
+  },
+  {
+    key: "loot_box_epic",
+    name: "Epic Loot Box",
+    description: "Open with !lootbox epic — skill scrolls & rare materials",
+    lore: "A mystical chest pulsing with magic energy. Contains advanced hunter gear.",
+    price: 2300,
+    rarity: "Epic",
+    category: "lootbox",
+    emoji: { id: "1477554321074950194", animated: false },
+    inventoryToken: "loot_box:epic",
+    apply: () => ({}),
+  },
+  {
+    key: "loot_box_legendary",
+    name: "Legendary Loot Box",
+    description: "Open with !lootbox legendary — top-tier loot possible",
+    lore: "A chest sealed by the Shadow Monarch himself. Opening it may change your fate forever.",
+    price: 9000,
+    rarity: "Legendary",
+    category: "lootbox",
+    emoji: { id: "1477554506031169577", animated: false },
+    inventoryToken: "loot_box:legendary",
     apply: () => ({}),
   },
 ];
@@ -211,6 +255,7 @@ const CATEGORY_LABELS = {
   material:   "Material",
   special:    "Special",
   skill:      "Skill Scroll",
+  lootbox:    "Loot Box",
 };
 
 const PAGE_SIZE = 4;
@@ -236,7 +281,7 @@ function pickSelected(pageItems, selectedKey) {
   return pageItems.find((x) => x.key === selectedKey) || pageItems[0];
 }
 
-function buildShopPayload({ userId, hunter, page = 0, selectedKey = null, notice = "" }) {
+function buildShopPayload({ userId, hunter, page = 0, selectedKey = null, notice = "", ephemeral = true }) {
   const p        = clampPage(page);
   const pageItems = getPageItems(p);
   const selected  = pickSelected(pageItems, selectedKey);
@@ -247,8 +292,8 @@ function buildShopPayload({ userId, hunter, page = 0, selectedKey = null, notice
 
   // ── Header
   const headerText =
-    `## ${E.shop}  Hunter Shop\n` +
-    `> ${E.gold} **Gold:**  \`${goldDisplay}\`  ${E.page}  Page **${p + 1} / ${maxPage + 1}**`;
+    `## ${E().shop}  Hunter Shop\n` +
+    `> ${E().gold} **Gold:**  \`${goldDisplay}\`  ${E().page}  Page **${p + 1} / ${maxPage + 1}**`;
 
   // ── Item detail block
   let detailText = "";
@@ -256,14 +301,15 @@ function buildShopPayload({ userId, hunter, page = 0, selectedKey = null, notice
     const badge    = RARITY_BADGE[selected.rarity] || selected.rarity;
     const category = CATEGORY_LABELS[selected.category] || selected.category;
     const canAfford = goldNum >= selected.price;
-    const itemEmoji = selected.emoji ? `<:e:${selected.emoji.id}>  ` : "";
+    const resolved  = getItemEmoji(selected);
+    const itemEmoji = resolved ? `<:e:${resolved.id}>  ` : "";
 
     detailText =
       `### ${itemEmoji}${selected.name}\n` +
       `> *${selected.lore}*\n\n` +
       `**${badge}**  ·  **${category}**\n` +
       `**Effect:**  ${selected.description}\n` +
-      `**Price:**  ${E.gold}  \`${selected.price} Gold\``;
+      `**Price:**  ${E().gold}  \`${selected.price} Gold\``;
 
     if (!canAfford) {
       const missing = selected.price - goldNum;
@@ -286,31 +332,35 @@ function buildShopPayload({ userId, hunter, page = 0, selectedKey = null, notice
         label: item.name,
         value: item.key,
         description: `${RARITY_BADGE[item.rarity] || item.rarity}  ·  ${item.price} gold`,
-        emoji: item.emoji,
+        emoji: getItemEmoji(item) || item.emoji,
         default: selected && selected.key === item.key,
       }))
     );
 
-  // ── Nav buttons with animated GIF emojis
+  const navIds = getShopNavIds();
   const canBuy = selected && goldNum >= selected.price;
+  const nextId = navIds.next && String(navIds.next).trim();
+  const buyId = navIds.buy && String(navIds.buy).trim();
+  const nextBtn = new ButtonBuilder()
+    .setCustomId(`shop_next:${userId}:${p}:${selected?.key || "none"}`)
+    .setLabel("Next")
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(p >= maxPage);
+  if (nextId) nextBtn.setEmoji(btnEmoji(nextId, true));
+  const buyBtn = new ButtonBuilder()
+    .setCustomId(`shop_buy:${userId}:${p}:${selected?.key || "none"}`)
+    .setLabel(canBuy ? `Buy  —  ${selected.price} Gold` : "Buy")
+    .setStyle(canBuy ? ButtonStyle.Success : ButtonStyle.Secondary)
+    .setDisabled(!canBuy);
+  if (buyId) buyBtn.setEmoji(btnEmoji(buyId, false));
   const navRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`shop_prev:${userId}:${p}:${selected?.key || "none"}`)
       .setLabel("Prev")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(p <= 0),
-    new ButtonBuilder()
-      .setCustomId(`shop_next:${userId}:${p}:${selected?.key || "none"}`)
-      .setLabel("Next")
-      .setEmoji(btnEmoji("1473670425371344907", true))    // next gif emoji
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(p >= maxPage),
-    new ButtonBuilder()
-      .setCustomId(`shop_buy:${userId}:${p}:${selected?.key || "none"}`)
-      .setLabel(canBuy ? `Buy  —  ${selected.price} Gold` : "Buy")
-      .setEmoji(btnEmoji("1006637475067859105", false))   // gold emoji on buy
-      .setStyle(canBuy ? ButtonStyle.Success : ButtonStyle.Secondary)
-      .setDisabled(!canBuy)
+    nextBtn,
+    buyBtn
   );
 
   const container = new ContainerBuilder()
@@ -323,7 +373,7 @@ function buildShopPayload({ userId, hunter, page = 0, selectedKey = null, notice
 
   return {
     components: [container],
-    flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+    flags: MessageFlags.IsComponentsV2 | (ephemeral ? MessageFlags.Ephemeral : 0),
   };
 }
 
@@ -341,7 +391,7 @@ function buildShopRowsForMessage({ userId, page = 0, selectedKey = null }) {
         label: item.name,
         value: item.key,
         description: `Cost: ${item.price} gold`,
-        emoji: item.emoji,
+        emoji: getItemEmoji(item) || item.emoji,
         default: selected && selected.key === item.key,
       }))
     );

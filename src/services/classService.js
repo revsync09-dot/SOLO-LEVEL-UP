@@ -48,9 +48,13 @@ function getClassMultipliers(className) {
   const m = { str: 1.0, agi: 1.0, int: 1.0, vit: 1.0 };
   switch (cn) {
     case "mage": m.int = 1.30; break;
+    case "element_mage": m.int = 1.45; m.vit = 0.90; break;
     case "assassin": m.agi = 1.30; break;
+    case "shadow_assassin": m.agi = 1.45; m.str = 1.10; break;
     case "summoner": m.int = 1.15; m.vit = 1.15; break;
+    case "necromancer": m.int = 1.40; m.vit = 1.25; break;
     case "warrior": m.str = 1.20; m.vit = 1.10; break;
+    case "knight": m.str = 1.35; m.vit = 1.20; break;
     case "tank": m.vit = 1.30; m.str = 1.10; break;
     default: break;
   }

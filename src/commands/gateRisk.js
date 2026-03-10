@@ -1,9 +1,12 @@
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { ensureHunter, addXpAndGold } = require("../services/hunterService");
 const { getCooldown, setCooldown } = require("../services/cooldownService");
 const { cooldownRemaining, nextCooldown } = require("../utils/cooldownHelper");
 const { randomInt } = require("../utils/math");
 const { generateGateCard } = require("../services/cardGenerator");
+const { updateUser } = require("../services/database");
+const { recordExtremeGateClear, recordDungeonClear, patchStats } = require("../services/eventService");
+const { computePower } = require("../services/combatService");
 
 module.exports = {
   data: new SlashCommandBuilder().setName("gate_risk").setDescription("High-risk gate: high reward or heavy penalty."),
@@ -16,25 +19,60 @@ module.exports = {
       return;
     }
 
+    const inventory = Array.isArray(hunter.inventory) ? [...hunter.inventory] : [];
+    const activeHunterKeyIndex = inventory.indexOf("active_item:hunter_key");
+    const activeGateCrystalIndex = inventory.indexOf("active_item:gate_crystal");
+    const usedHunterKey = activeHunterKeyIndex >= 0;
+    const usedGateCrystal = activeGateCrystalIndex >= 0;
+    if (usedHunterKey) {
+      inventory.splice(activeHunterKeyIndex, 1);
+    }
+    if (usedGateCrystal) {
+      const idx = inventory.indexOf("active_item:gate_crystal");
+      if (idx >= 0) inventory.splice(idx, 1);
+    }
+    if (usedHunterKey || usedGateCrystal) {
+      await updateUser(interaction.user.id, interaction.guildId, { inventory });
+    }
+
     const difficulty = "EXTREME";
-    const successChance = Math.min(80, 35 + hunter.level * 0.6 + hunter.agility * 0.5);
+    const rawChance =
+      52 +
+      (Number(hunter.level) || 0) * 0.7 +
+      (Number(hunter.agility) || 0) * 0.45 +
+      (Number(hunter.strength) || 0) * 0.15 +
+      (usedHunterKey ? 14 : 0) +
+      (usedGateCrystal ? 7 : 0);
+    const successChance = Math.min(96, Math.max(48, Math.round(rawChance)));
     const roll = randomInt(1, 100);
     const didWin = roll <= successChance;
 
     let rewards = {};
+    let progression;
     if (didWin) {
-      const gold = randomInt(280, 520);
-      const xp = randomInt(120, 240);
+      const mult = (usedHunterKey ? 1.5 : 1) * (usedGateCrystal ? 1.2 : 1);
+      const gold = Math.floor(randomInt(280, 520) * mult);
+      const xp = Math.floor(randomInt(120, 240) * mult);
       rewards = { gold, xp };
-      await addXpAndGold(interaction.user.id, interaction.guildId, xp, gold);
+      progression = await addXpAndGold(interaction.user.id, interaction.guildId, xp, gold);
+      await recordExtremeGateClear(interaction.guildId, interaction.user.id);
+      await recordDungeonClear(interaction.guildId, interaction.user.id);
     } else {
-      const penalty = randomInt(80, 180);
+      const penalty = Math.floor(randomInt(80, 180) * (usedHunterKey ? 0.6 : 1));
       rewards = { penalty };
-      await addXpAndGold(interaction.user.id, interaction.guildId, 30, -penalty);
+      progression = await addXpAndGold(interaction.user.id, interaction.guildId, 30, -penalty);
     }
+    await patchStats(interaction.guildId, interaction.user.id, {
+      combat_power: computePower(progression.hunter, []),
+      top_gold: Number(progression.hunter.gold || 0),
+    });
 
-    const card = await generateGateCard(interaction.user, difficulty, rewards, didWin);
-    await setCooldown(interaction.user.id, interaction.guildId, "gate_risk", nextCooldown(600));
-    await interaction.editReply({ files: [{ attachment: card, name: "gate-card.png" }] });
+    const card = await generateGateCard(interaction.user, difficulty, rewards, didWin, successChance);
+    await setCooldown(interaction.user.id, interaction.guildId, "gate_risk", nextCooldown(280));
+    const chanceText = `**Win chance: ${successChance}%** ${didWin ? "✓" : "— Roll failed."}`;
+    await interaction.editReply({
+      content: [chanceText, usedHunterKey || usedGateCrystal ? "Active gate item effect consumed for this run." : null].filter(Boolean).join("\n"),
+      files: [{ attachment: card, name: "gate-card.png" }],
+    });
   },
 };

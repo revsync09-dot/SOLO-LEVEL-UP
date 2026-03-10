@@ -72,6 +72,13 @@ async function createHunter({ userId, guildId }) {
     const { data, error } = await supabase.from("hunters").insert(attemptPayload).select("*").single();
     if (!error) return normalizeHunterRecord(data);
 
+    // Race: another request created this hunter already — return existing
+    if (error.code === "23505") {
+      const existing = await getHunter(userId, guildId);
+      if (existing) return existing;
+      throw error;
+    }
+
     const isMissingColumn = error.code === "PGRST204" && typeof error.message === "string";
     if (!isMissingColumn) throw error;
 

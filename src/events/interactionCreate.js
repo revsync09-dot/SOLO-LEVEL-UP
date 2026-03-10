@@ -71,7 +71,7 @@ module.exports = {
 
       if (
         interaction.isMessageComponent() &&
-        [ComponentType.Button, ComponentType.StringSelect].includes(interaction.componentType)
+        [ComponentType.Button, ComponentType.StringSelect, ComponentType.RoleSelect].includes(interaction.componentType)
       ) {
         const componentKey = interaction.id;
         if (executingComponents.has(componentKey)) {

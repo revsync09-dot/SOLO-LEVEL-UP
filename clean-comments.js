@@ -1,44 +1,114 @@
 const fs = require('fs');
 const path = require('path');
 
-const excludeDirs = ['node_modules', '.git'];
+function removeComments(content) {
+  let result = '';
+  let i = 0;
+  let inString = false;
+  let stringChar = '';
+  let inRegex = false;
 
-function getAllJsFiles(dir, files = []) {
-  const list = fs.readdirSync(dir);
-  for (const file of list) {
-    const fullPath = path.join(dir, file);
-    if (fs.statSync(fullPath).isDirectory()) {
-      if (!excludeDirs.includes(file)) {
-        getAllJsFiles(fullPath, files);
+  while (i < content.length) {
+    const char = content[i];
+    const nextChar = content[i + 1];
+
+   
+    if ((char === '"' || char === "'" || char === '`') && (i === 0 || content[i - 1] !== '\\')) {
+      if (!inString) {
+        inString = true;
+        stringChar = char;
+        result += char;
+      } else if (char === stringChar) {
+        inString = false;
+        result += char;
+      } else {
+        result += char;
       }
-    } else if (file.endsWith('.js') && !file.includes('clean-comments.js')) {
-      files.push(fullPath);
+      i++;
+      continue;
     }
+
+    if (inString) {
+      result += char;
+      i++;
+      continue;
+    }
+
+    
+    if (char === '/' && nextChar === '/' && !inRegex) {
+    
+      while (i < content.length && content[i] !== '\n') {
+        i++;
+      }
+      
+      if (i < content.length && content[i] === '\n') {
+        result += '\n';
+        i++;
+      }
+      continue;
+    }
+
+ 
+    if (char === '/' && nextChar === '*' && !inRegex) {
+      
+      i += 2;
+      while (i < content.length - 1) {
+        if (content[i] === '*' && content[i + 1] === '/') {
+          i += 2;
+          break;
+        }
+        if (content[i] === '\n') {
+          result += '\n';
+        }
+        i++;
+      }
+      continue;
+    }
+
+    result += char;
+    i++;
   }
-  return files;
+
+  return result;
 }
 
-const jsFiles = getAllJsFiles(process.cwd());
-
-jsFiles.forEach(file => {
-  let content = fs.readFileSync(file, 'utf8');
-  let changed = false;
-
-  // Pattern to match lines that contain ONLY "// -----" (at least 3 dashes) and possibly whitespace
-  // Or match any "// ---" inside a line to clean it up if that's what user meant by "alle // ----"
-  // Let's do a more careful approach: replace any "//" followed by 3+ dashes with nothing
+function cleanFile(filePath) {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const cleaned = removeComments(content);
+    
   
-  const regex = /\/\/\s*-{3,}.*$/gm;
-  
-  if (regex.test(content)) {
-    content = content.replace(regex, '');
-    changed = true;
+    const finalContent = cleaned.replace(/\n\n\n+/g, '\n\n');
+    
+    fs.writeFileSync(filePath, finalContent, 'utf8');
+    return true;
+  } catch (error) {
+    console.error(`Error processing ${filePath}:`, error.message);
+    return false;
+  }
+}
+
+function processDirectory(dir) {
+  const files = fs.readdirSync(dir);
+  let totalCleaned = 0;
+
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    const stat = fs.statSync(fullPath);
+
+    if (stat.isDirectory()) {
+      totalCleaned += processDirectory(fullPath);
+    } else if (file.endsWith('.js')) {
+      if (cleanFile(fullPath)) {
+        console.log(`✓ Cleaned: ${fullPath}`);
+        totalCleaned++;
+      }
+    }
   }
 
-  // Also clean up any resulting double empty lines
-  if (changed) {
-    content = content.replace(/\n\s*\n\s*\n/g, '\n\n');
-    fs.writeFileSync(file, content, 'utf8');
-    console.log(`Cleaned: ${file}`);
-  }
-});
+  return totalCleaned;
+}
+
+const srcPath = path.join(__dirname, 'src');
+const total = processDirectory(srcPath);
+console.log(`\n✅ Total files cleaned: ${total}`);

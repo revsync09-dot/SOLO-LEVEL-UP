@@ -1,4 +1,4 @@
-const { MessageFlags, SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { ensureHunter, getHunter, xpRequired } = require("../services/hunterService");
 const { generateStatsCard } = require("../services/cardGenerator");
 const { getEquippedShadows } = require("../services/shadowService");

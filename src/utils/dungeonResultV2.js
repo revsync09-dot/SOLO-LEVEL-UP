@@ -6,17 +6,13 @@ const {
   TextDisplayBuilder,
 } = require("discord.js");
 
+const { getDungeonResultEmojis } = require("../config/emojis");
+
 const DUNGEON_IMAGE_A = process.env.DUNGEON_RESULT_IMAGE_A || null;
 const DUNGEON_IMAGE_B = process.env.DUNGEON_RESULT_IMAGE_B || null;
 
-const EMOJI = {
-  xp: "<:xp:1475916361623408902>",
-  gold: "<:gold:1475915038182346894>",
-  str: "<:str:1475890708140392621>",
-  agi: "<:agi:1475914899870978160>",
-};
-
 function dungeonSummaryLines(result, lootText) {
+  const EMOJI = getDungeonResultEmojis();
   const lines = [
     `**${result.didWin ? "Dungeon Clear" : "Dungeon Failed"}**`,
     `${EMOJI.str} Your Power: **${Number(result.playerPower || 0)}**`,

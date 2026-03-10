@@ -13,17 +13,40 @@ function isMissingShadowGuildColumn(error) {
 }
 
 const SHADOW_NAMES = [
-  "Igris Echo",
-  "Iron Fang",
-  "Stone Warden",
-  "Night Talon",
-  "Crimson Drake",
-  "Void General",
+  "Igris Echo", "Iron Fang", "Stone Warden", "Night Talon", "Crimson Drake", "Void General",
+  "Beru Shard", "Tusk Phantom", "Kaisel Wing", "Tank Maul", "Greed Echo", "Jinho Shield",
+  "Shadow Knight", "Dark Archer", "Soul Reaver", "Eternal Guard", "Frost Giant", "Lava Beast"
+];
+
+const MONARCH_SHADOWS = [
+  "Shadow Monarch", "Frost Monarch", "Plague Monarch", "Beast Monarch"
 ];
 
 function rollRarity() {
   const roll = randomInt(0, 100);
   return SHADOW_RARITY.find((r) => roll >= r.min && roll <= r.max) || SHADOW_RARITY[0];
+}
+
+async function rollExtraction(userId, guildId, targetName, targetRank) {
+  const rarity = rollRarity();
+  const name = `${targetName} Shadow`;
+  
+  const payload = {
+    user_id: userId,
+    guild_id: guildId,
+    name: name,
+    rank: targetRank || "E-Rank",
+    rarity: rarity.name,
+    rarity_score: rarity.bonus,
+    base_damage: 15 + rarity.bonus + randomInt(5, 15),
+    ability_bonus: 5 + Math.ceil(rarity.bonus / 2),
+    level: 1,
+    equipped: false,
+  };
+
+  const { data, error } = await supabase.from("shadows").insert(payload).select("*").single();
+  if (error) throw error;
+  return data;
 }
 
 async function listShadows(userId, guildId) {

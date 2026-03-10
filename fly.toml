@@ -2,6 +2,8 @@ app = 'lucent-bot123'
 primary_region = 'fra'
 
 [build]
+  dockerfile = "Dockerfile"
+  # Build uses Node Dockerfile; do not use Python/buildpack
 
 [env]
   NODE_ENV = "production"
