@@ -1,4 +1,4 @@
-import './globals.css'
+import '../styles/globals.css'
 import React from 'react'
 import Navbar from '../components/Navbar'
 import { Inter } from 'next/font/google'
