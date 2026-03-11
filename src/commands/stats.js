@@ -67,16 +67,8 @@ module.exports = {
         topCards,
       });
 
-      const websiteButton = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel("View Live Profile")
-          .setStyle(ButtonStyle.Link)
-          .setURL(`https://solo-level-up-delta.vercel.app/dashboard?id=${targetUser.id}`)
-      );
-
       await interaction.editReply({
-        files: [{ attachment: card, name: "stats-card.png" }],
-        components: [websiteButton],
+        files: [{ attachment: card, name: "stats-card.png" }]
       });
     } catch (error) {
       console.error("[stats:error]", error);

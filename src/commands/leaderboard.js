@@ -1,5 +1,20 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 const { getLeaderboards } = require("../services/eventService");
+
+function ellipsizeToken(str, max) {
+  if (!str) return "Unknown";
+  if (str.length <= max) return str;
+  return str.slice(0, max - 3) + "...";
+}
+
+function formatRows(rows, keyField, nameMap) {
+  if (!rows || rows.length === 0) return "No data";
+  return rows.slice(0, 10).map((r, i) => {
+    const val = r[keyField];
+    const name = ellipsizeToken(r.username || nameMap.get(r.user_id) || "Hunter", 12);
+    return `${i + 1}. **${name}** - ${Number(val).toLocaleString()}`;
+  }).join("\n");
+}
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,27 +24,31 @@ module.exports = {
     await interaction.deferReply();
     const lb = await getLeaderboards(interaction.guildId);
     
-    // We can't use the V2 components easily here without a lot of overhead,
-    // so we'll just provide a nice link to the web leaderboard which is much better anyway.
-    
+    const userIds = new Set();
+    const addToSet = (arr) => { if (arr) arr.forEach(r => userIds.add(r.user_id)); };
+    addToSet(lb.combatPower);
+    addToSet(lb.dungeonClears);
+    addToSet(lb.highestDamage);
+
+    const nameMap = new Map();
+    if (userIds.size > 0 && interaction.guild) {
+      try {
+        const members = await interaction.guild.members.fetch({ user: Array.from(userIds) });
+        members.forEach(m => nameMap.set(m.id, m.user.username));
+      } catch (err) {}
+    }
+
     const embed = {
       title: "🏆 Global Hunter Leaderboards",
-      description: "Click the button below to view the full, real-time leaderboard on our high-speed intelligence dashboard.",
       color: 0x0099ff,
       fields: [
-        { name: "Combat Power", value: lb.combatPower?.length ? "Rankings available online" : "No data", inline: true },
-        { name: "Dungeon Clears", value: lb.dungeonClears?.length ? "Rankings available online" : "No data", inline: true },
+        { name: "⚔️ Combat Power", value: formatRows(lb.combatPower, "combat_power", nameMap), inline: true },
+        { name: "🛡️ Dungeon Clears", value: formatRows(lb.dungeonClears, "dungeon_clears", nameMap), inline: true },
+        { name: "💥 Highest Damage", value: formatRows(lb.highestDamage, "highest_damage", nameMap), inline: true },
       ],
-      footer: { text: "Data synchronized with hunters' database." }
+      footer: { text: "Data is synchronized globally." }
     };
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel("Open Live Leaderboard")
-        .setStyle(ButtonStyle.Link)
-        .setURL("https://solo-level-up-delta.vercel.app/leaderboard")
-    );
-
-    await interaction.editReply({ embeds: [embed], components: [row] });
+    await interaction.editReply({ embeds: [embed] });
   },
 };

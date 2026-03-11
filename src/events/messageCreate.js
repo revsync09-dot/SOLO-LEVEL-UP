@@ -195,13 +195,7 @@ function leaderboardV2Payload(lb, nameMap = null) {
   const container = new ContainerBuilder().addTextDisplayComponents(
     new TextDisplayBuilder().setContent(text)
   );
-  const websiteButton = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setLabel("View Full Live Leaderboard")
-      .setStyle(ButtonStyle.Link)
-      .setURL("https://solo-level-up-delta.vercel.app/leaderboard")
-  );
-  return { components: [container, websiteButton], flags: MessageFlags.IsComponentsV2 };
+  return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
 function v2TextPayload(text) {
@@ -370,13 +364,7 @@ module.exports = {
           expNeeded, basePower, shadowPower, cardPower: cardBonus.totalPower, finalPower,
           equippedShadows: equippedShadows.length, shadowSlots: hunter.shadow_slots, ownedCards: ownedCards.length, topCards,
         });
-        const websiteButton = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setLabel("View Live Profile")
-            .setStyle(ButtonStyle.Link)
-            .setURL(`https://solo-level-up-delta.vercel.app/dashboard?id=${targetUser.id}`)
-        );
-        await message.reply({ files: [{ attachment: card, name: "stats-card.png" }], components: [websiteButton] });
+        await message.reply({ files: [{ attachment: card, name: "stats-card.png" }] });
         return;
       }
 
